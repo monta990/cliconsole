@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <name>CLI Console</name>
+  <key>cliconsole</key>
+  <state>stable</state>
+  <logo>logo.png</logo>
+  <homepage>https://github.com/monta990/cliconsole</homepage>
+  <author>Edwin Elias Alvarez</author>
+  <license>GPLv3+</license>
+  <description>
+    <short>
+      <en>Run GLPI bin/console commands through an authenticated web console when direct shell access is unavailable.</en>
+      <es_MX>Ejecuta comandos de bin/console de GLPI mediante una consola web autenticada cuando no existe acceso directo a la terminal.</es_MX>
+    </short>
+    <long>
+      <en>CLI Console provides a browser-based terminal for GLPI administrators and authorized profiles. It lets users enter GLPI console commands while binding execution to the current GLPI installation's bin/console and a configured PHP CLI binary. Commands are executed without a shell, and output is streamed back to the browser.</en>
+      <es_MX>CLI Console proporciona una terminal web para administradores y perfiles autorizados de GLPI. Permite introducir comandos de consola de GLPI vinculando la ejecución al bin/console de la instalación actual y a un ejecutable PHP CLI configurado. Los comandos se ejecutan sin shell y la salida se transmite al navegador.</es_MX>
+    </long>
+  </description>
+</root>

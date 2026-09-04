@@ -1,0 +1,213 @@
+{% extends 'layout/page_without_tabs.html.twig' %}
+
+{% block content_title %}{{ __('CLI Console', 'cliconsole') }}{% endblock content_title %}
+
+{% block content_body %}
+<div class="container-fluid px-3 px-lg-4 py-3 cliconsole-app">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-terminal-2 text-primary" aria-hidden="true"></i>
+                <h1 class="mb-0">{{ __('CLI Console', 'cliconsole') }}</h1>
+            </div>
+            <div class="text-muted mt-1">{{ __('Run GLPI bin/console commands without shell access.', 'cliconsole') }}</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary-lt font-monospace px-2 py-2">
+                {{ php_binary ?: __('PHP CLI not configured', 'cliconsole') }}
+            </span>
+            <a class="btn btn-icon btn-ghost-secondary" href="{{ config_url }}"
+               title="{{ __('Configure PHP CLI', 'cliconsole') }}"
+               aria-label="{{ __('Configure PHP CLI', 'cliconsole') }}">
+                <i class="ti ti-settings" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+
+    {% if not php_binary %}
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+            <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+            <div class="flex-fill">{{ __('Configure the PHP CLI executable before running commands.', 'cliconsole') }}</div>
+            <a class="btn btn-warning" href="{{ config_url }}">
+                <i class="ti ti-settings me-1" aria-hidden="true"></i>{{ __('Configure', 'cliconsole') }}
+            </a>
+        </div>
+    {% else %}
+        <div class="alert alert-info d-flex align-items-start gap-2 mb-3">
+            <i class="ti ti-shield-lock mt-1" aria-hidden="true"></i>
+            <div>
+                <strong>{{ __('Restricted execution', 'cliconsole') }}</strong>
+                <div class="mt-1">{{ __('Only GLPI console commands are accepted. The command is always executed with this installation\'s real bin/console and is never passed through a shell.', 'cliconsole') }}</div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card cliconsole-card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-terminal-2" aria-hidden="true"></i>
+                <span>{{ __('Terminal', 'cliconsole') }}</span>
+            </div>
+            <span id="cliconsole-status-badge" class="badge bg-secondary-lt px-2 py-2">{{ __('Ready', 'cliconsole') }}</span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="cliconsole-window">
+                <div class="cliconsole-window-bar">
+                    <span class="cliconsole-dot"></span>
+                    <span class="cliconsole-dot"></span>
+                    <span class="cliconsole-dot"></span>
+                    <span class="cliconsole-window-title">GLPI bin/console</span>
+                </div>
+                <pre id="cliconsole-output" class="cliconsole-output"><span class="cliconsole-prompt">$</span> </pre>
+            </div>
+
+            <div class="cliconsole-commandbar p-3 border-top">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text font-monospace">$</span>
+                    <input id="cliconsole-command" type="text" class="form-control font-monospace"
+                           autocomplete="off" spellcheck="false" placeholder="migration:timestamps"
+                           {% if not php_binary %}disabled{% endif %}>
+                    <button id="cliconsole-run" class="btn btn-primary" type="button" {% if not php_binary %}disabled{% endif %}>
+                        <i class="ti ti-player-play me-1" aria-hidden="true"></i>{{ __('Run', 'cliconsole') }}
+                    </button>
+                    <button id="cliconsole-clear" class="btn btn-secondary" type="button">
+                        <i class="ti ti-trash me-1" aria-hidden="true"></i>{{ __('Clear', 'cliconsole') }}
+                    </button>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                    <div id="cliconsole-status" class="small text-muted">{{ __('Ready. Enter a GLPI console command.', 'cliconsole') }}</div>
+                    <div class="small text-muted font-monospace">{{ __('Example:', 'cliconsole') }} migration:timestamps</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ parent() }}
+<script>
+(() => {
+    const commandInput = document.getElementById('cliconsole-command');
+    const runButton = document.getElementById('cliconsole-run');
+    const clearButton = document.getElementById('cliconsole-clear');
+    const output = document.getElementById('cliconsole-output');
+    const status = document.getElementById('cliconsole-status');
+    const statusBadge = document.getElementById('cliconsole-status-badge');
+
+    const runUrl = {{ run_url|json_encode|raw }};
+    const csrfToken = {{ csrf_token()|json_encode|raw }};
+
+    function append(text) {
+        output.append(document.createTextNode(text));
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function setStatus(text, state) {
+        status.textContent = text;
+        const label = state === 'running'
+            ? '{{ __('Running', 'cliconsole')|e('js') }}'
+            : state === 'success'
+                ? '{{ __('Completed', 'cliconsole')|e('js') }}'
+                : state === 'error'
+                    ? '{{ __('Error', 'cliconsole')|e('js') }}'
+                    : '{{ __('Ready', 'cliconsole')|e('js') }}';
+
+        const badgeClass = state === 'running' ? 'bg-blue-lt'
+            : state === 'success' ? 'bg-green-lt'
+            : state === 'error' ? 'bg-red-lt'
+            : 'bg-secondary-lt';
+
+        statusBadge.className = 'badge px-2 py-2 ' + badgeClass;
+        statusBadge.textContent = label;
+    }
+
+    function setRunning(running) {
+        runButton.disabled = running;
+        clearButton.disabled = running;
+        commandInput.disabled = running || {{ (not php_binary) ? 'true' : 'false' }};
+        runButton.innerHTML = running
+            ? '<i class="ti ti-loader-2 spin me-1"></i>{{ __('Running...', 'cliconsole')|e('js') }}'
+            : '<i class="ti ti-player-play me-1"></i>{{ __('Run', 'cliconsole')|e('js') }}';
+    }
+
+    async function runCommand() {
+        const command = commandInput.value.trim();
+        if (!command) {
+            commandInput.focus();
+            return;
+        }
+
+        setRunning(true);
+        setStatus('{{ __('Starting command...', 'cliconsole')|e('js') }}', 'running');
+        output.textContent = '';
+        output.append(document.createTextNode('$ ' + command + '\n\n'));
+        append('{{ __('Connecting to the GLPI console endpoint...', 'cliconsole')|e('js') }}\n');
+
+        try {
+            const body = new URLSearchParams({
+                command,
+                _glpi_csrf_token: csrfToken
+            });
+
+            const response = await fetch(runUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'Accept': 'text/plain',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || ('HTTP ' + response.status));
+            }
+
+            if (!response.body) {
+                throw new Error('{{ __('The browser does not support streamed responses.', 'cliconsole')|e('js') }}');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const {value, done} = await reader.read();
+                if (done) break;
+                append(decoder.decode(value, {stream: true}));
+                setStatus('{{ __('Receiving command output...', 'cliconsole')|e('js') }}', 'running');
+            }
+
+            append('\n');
+            setStatus('{{ __('Process finished.', 'cliconsole')|e('js') }}', 'success');
+        } catch (error) {
+            append('\nERROR: ' + error.message + '\n');
+            setStatus('{{ __('The command failed or the connection was interrupted.', 'cliconsole')|e('js') }}', 'error');
+        } finally {
+            setRunning(false);
+            commandInput.focus();
+        }
+    }
+
+    runButton?.addEventListener('click', runCommand);
+
+    commandInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            runCommand();
+        }
+    });
+
+    clearButton?.addEventListener('click', () => {
+        output.innerHTML = '<span class="cliconsole-prompt">$</span> ';
+        setStatus('{{ __('Ready. Enter a GLPI console command.', 'cliconsole')|e('js') }}', 'ready');
+        commandInput.focus();
+    });
+})();
+</script>
+
+{% endblock content_body %}
+
