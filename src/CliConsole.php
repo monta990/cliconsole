@@ -6,6 +6,7 @@ namespace GlpiPlugin\Cliconsole;
 
 use CommonDBTM;
 use Profile as GlpiProfile;
+use RuntimeException;
 
 final class CliConsole extends CommonDBTM
 {
@@ -24,23 +25,12 @@ final class CliConsole extends CommonDBTM
         return 'ti ti-terminal-2';
     }
 
-    /**
-     * CLI Console is intentionally restricted to GLPI's native Super-Admin
-     * profiles. This follows GLPI's own definition of a Super-Admin profile.
-     */
     public static function isSuperAdmin(): bool
     {
         $profileId = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
 
-        if ($profileId <= 0) {
-            return false;
-        }
-
-        return in_array(
-            $profileId,
-            GlpiProfile::getSuperAdminProfilesId(),
-            true
-        );
+        return $profileId > 0
+            && in_array($profileId, GlpiProfile::getSuperAdminProfilesId(), true);
     }
 
     public static function getMenuContent(): array
@@ -52,17 +42,177 @@ final class CliConsole extends CommonDBTM
         }
 
         $base = rtrim($CFG_GLPI['root_doc'], '/') . '/plugins/cliconsole';
-        $consoleUrl = $base . '/Console';
-        $configUrl = $base . '/config';
 
         return [
             'title' => self::getMenuName(),
             'icon'  => self::getIcon(),
-            'page'  => $consoleUrl,
+            'page'  => $base . '/Console',
             'links' => [
-                'search' => $consoleUrl,
-                'config' => $configUrl,
+                'search' => $base . '/Console',
+                'config' => $base . '/config',
             ],
         ];
+    }
+
+    public static function getSessionBaseDir(): string
+    {
+        $base = defined('GLPI_VAR_DIR')
+            ? GLPI_VAR_DIR . '/cliconsole'
+            : GLPI_FILES_DIR . '/_plugins/cliconsole';
+
+        if (!is_dir($base) && !mkdir($base, 0700, true) && !is_dir($base)) {
+            throw new RuntimeException(__('Unable to create terminal session storage.', 'cliconsole'));
+        }
+
+        return $base;
+    }
+
+    public static function getSessionDir(string $sessionId): string
+    {
+        if (!preg_match('/\A[a-f0-9]{64}\z/', $sessionId)) {
+            throw new RuntimeException(__('Invalid terminal session.', 'cliconsole'));
+        }
+
+        $base = realpath(self::getSessionBaseDir());
+        $dir = realpath(self::getSessionBaseDir() . DIRECTORY_SEPARATOR . $sessionId);
+
+        if ($base === false || $dir === false || !str_starts_with($dir, $base . DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException(__('Terminal session not found.', 'cliconsole'));
+        }
+
+        return $dir;
+    }
+
+    public static function cleanupOldSessions(string $baseDir): void
+    {
+        $now = time();
+
+        foreach (glob($baseDir . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+            if ((@filemtime($dir) ?: $now) < ($now - 3600)) {
+                self::removeSession($dir);
+            }
+        }
+    }
+
+    public static function removeSession(string $sessionDir): void
+    {
+        foreach (glob($sessionDir . '/*') ?: [] as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
+        }
+        @rmdir($sessionDir);
+    }
+
+
+    public static function parseCommand(string $commandLine): array
+    {
+        if ($commandLine === '' || preg_match('/[;&|`$<>\\\\]/', $commandLine)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('Shell operators are not allowed. Enter only a GLPI console command and its arguments.', 'cliconsole')
+            );
+        }
+
+        $tokens = str_getcsv($commandLine, ' ', '"', '\\');
+        $tokens = array_values(array_filter(array_map('trim', $tokens), static fn ($value) => $value !== ''));
+
+        if ($tokens === []) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('No command was provided.', 'cliconsole')
+            );
+        }
+
+        foreach ($tokens as $token) {
+            if (str_contains($token, "\0")) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                    __('An invalid argument was supplied.', 'cliconsole')
+                );
+            }
+        }
+
+        return $tokens;
+    }
+
+    public static function readTailFromOffset(string $file, int $offset): array
+    {
+        if (!is_file($file)) {
+            return ['', 0];
+        }
+
+        clearstatcache(true, $file);
+
+        $size = filesize($file);
+        if ($size === false) {
+            return ['', 0];
+        }
+
+        if ($offset < 0 || $offset > $size) {
+            $offset = 0;
+        }
+
+        if ($offset === $size) {
+            return ['', $size];
+        }
+
+        $fp = fopen($file, 'rb');
+        if ($fp === false) {
+            return ['', $offset];
+        }
+
+        if (fseek($fp, $offset) !== 0) {
+            fclose($fp);
+            return ['', $offset];
+        }
+
+        $data = stream_get_contents($fp);
+        fclose($fp);
+
+        return [$data === false ? '' : $data, $size];
+    }
+
+    public static function readStatus(string $file): array
+    {
+        if (!is_file($file)) {
+            return [
+                'state' => 'unknown',
+                'exit_code' => null,
+            ];
+        }
+
+        $data = json_decode((string) file_get_contents($file), true);
+
+        return is_array($data)
+            ? $data
+            : [
+                'state' => 'unknown',
+                'exit_code' => null,
+            ];
+    }
+
+    public static function resolveExecutables(): array
+    {
+        $config = \Config::getConfigurationValues('plugin:cliconsole');
+        $phpBinary = trim((string) ($config['php_binary'] ?? ''));
+
+        $realPhp = realpath($phpBinary);
+        if ($realPhp === false || !is_file($realPhp) || !is_executable($realPhp)) {
+            throw new RuntimeException(
+                __('The configured PHP CLI binary does not exist or is not executable.', 'cliconsole')
+            );
+        }
+
+        $glpiRoot = realpath(GLPI_ROOT);
+        $console = realpath(GLPI_ROOT . '/bin/console');
+
+        if ($glpiRoot === false || $console === false) {
+            throw new RuntimeException(__('GLPI bin/console could not be found.', 'cliconsole'));
+        }
+
+        $binDir = $glpiRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($console, $binDir)) {
+            throw new RuntimeException(__('The detected bin/console is outside the GLPI root.', 'cliconsole'));
+        }
+
+        return [$realPhp, $console];
     }
 }

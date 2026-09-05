@@ -1,89 +1,142 @@
 {% extends 'layout/page_without_tabs.html.twig' %}
 
-{% block content_title %}{{ __('CLI Console configuration', 'cliconsole') }}{% endblock content_title %}
+{% set title = __('CLI Console configuration', 'cliconsole') %}
+
+{% block content_title %}{% endblock content_title %}
 
 {% block content_body %}
-<div class="container-fluid px-3 px-lg-4 py-3">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-        <div>
-            <div class="d-flex align-items-center gap-2">
-                <i class="ti ti-settings" aria-hidden="true"></i>
-                <h1 class="mb-0">{{ __('CLI Console configuration', 'cliconsole') }}</h1>
-            </div>
-            <div class="text-muted mt-1">{{ __('Choose which PHP CLI executable GLPI should use for bin/console.', 'cliconsole') }}</div>
-        </div>
-        <a class="btn btn-secondary" href="{{ console_url }}"><i class="ti ti-arrow-left me-1" aria-hidden="true"></i>{{ __('Back to console', 'cliconsole') }}</a>
-    </div>
+<div class="container-fluid cliconsole-page">
+    <div class="card cliconsole-shell">
+        <div class="card-body p-4">
 
-    <div class="card mb-3">
-        <div class="card-header"><i class="ti ti-brand-github me-2" aria-hidden="true"></i>{{ __('GitHub version check', 'cliconsole') }}</div>
-        <div class="card-body">
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="text-muted">{{ __('Installed version', 'cliconsole') }}:</span>
-                <code>{{ plugin_version }}</code>
-                <button type="button" class="btn btn-secondary btn-sm" id="cliconsole-check-version">
-                    <i class="ti ti-refresh me-1" aria-hidden="true"></i>{{ __('Check for updates', 'cliconsole') }}
-                </button>
-                <a class="btn btn-link btn-sm" href="https://github.com/monta990/cliconsole" target="_blank" rel="noopener">
-                    <i class="ti ti-brand-github me-1" aria-hidden="true"></i>{{ __('Repository', 'cliconsole') }}
-                </a>
-            </div>
-            <div id="cliconsole-version-result" class="small text-muted mt-2"></div>
-        </div>
-    </div>
+            <div class="card cliconsole-header-card mb-3">
+                <div class="card-body py-3">
+                    <div class="row align-items-center g-3">
+                        <div class="col">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="cliconsole-icon-box" aria-hidden="true">
+                                    <i class="ti ti-settings"></i>
+                                </span>
+                                <div>
+                                    <h2 class="h2 mb-1">{{ __('CLI Console configuration', 'cliconsole') }}</h2>
+                                    <div class="text-muted">
+                                        {{ __('Choose which PHP CLI executable GLPI should use for bin/console.', 'cliconsole') }}
+                                    </div>
 
-    <form method="post" action="{{ save_url }}">
-        <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-        <div class="card">
-            <div class="card-header"><i class="ti ti-brand-php me-2" aria-hidden="true"></i>{{ __('Execution settings', 'cliconsole') }}</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label" for="cliconsole-php-binary">{{ __('PHP CLI binary path', 'cliconsole') }}</label>
-                    <input id="cliconsole-php-binary" name="php_binary" type="text" class="form-control font-monospace" value="{{ config.php_binary|default('')|e }}" placeholder="/usr/bin/php85" autocomplete="off" required>
-                    <div class="form-text">{{ __('Enter an absolute path such as /usr/bin/php85. The executable must exist and be executable by the web server account.', 'cliconsole') }}</div>
+                                    {% if version_status.state == 'update' %}
+                                        <div class="cliconsole-version-line text-warning mt-1">
+                                            {{ __('CLI Console has an update available.', 'cliconsole') }}
+                                            <span class="mx-1">·</span>
+                                            <code>{{ version_status.current }}</code>
+                                            <span class="mx-1">·</span>
+                                            {{ __('Latest stable version', 'cliconsole') }}
+                                            <code>{{ version_status.latest }}</code>
+                                            <span class="mx-1">·</span>
+                                            <a href="{{ version_status.url }}" target="_blank" rel="noopener noreferrer">
+                                                {{ __('View versions', 'cliconsole') }}
+                                            </a>
+                                        </div>
+                                    {% elseif version_status.state == 'current' %}
+                                        <div class="cliconsole-version-line text-muted mt-1">
+                                            {{ __('CLI Console is up to date.', 'cliconsole') }}
+                                            <span class="mx-1">·</span>
+                                            <code>{{ version_status.current }}</code>
+                                            <span class="mx-1">·</span>
+                                            {{ __('Latest stable version', 'cliconsole') }}
+                                            <code>{{ version_status.latest }}</code>
+                                            <span class="mx-1">·</span>
+                                            <a href="{{ version_status.url }}" target="_blank" rel="noopener noreferrer">
+                                                {{ __('View versions', 'cliconsole') }}
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="cliconsole-version-line text-muted mt-1">
+                                            {{ __('CLI Console version could not be checked right now.', 'cliconsole') }}
+                                            <span class="mx-1">·</span>
+                                            <code>{{ version_status.current }}</code>
+                                            <span class="mx-1">·</span>
+                                            <a href="{{ version_status.url }}" target="_blank" rel="noopener noreferrer">
+                                                {{ __('View versions', 'cliconsole') }}
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-auto">
+                            <a class="btn btn-secondary" href="{{ console_url }}">
+                                <i class="ti ti-arrow-left me-1" aria-hidden="true"></i>
+                                {{ __('Back to console', 'cliconsole') }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cliconsole-settings-card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ti ti-brand-php" aria-hidden="true"></i>
+                        <span>{{ __('Execution settings', 'cliconsole') }}</span>
+                    </div>
                 </div>
 
-                <div class="alert alert-info mb-0">
-                    <div><i class="ti ti-lock me-1" aria-hidden="true"></i><strong>{{ __('Execution boundary', 'cliconsole') }}</strong></div>
-                    <div class="mt-1">{{ __('CLI Console always invokes the real bin/console located under this GLPI installation. The configured PHP binary cannot be used to execute another script through this interface, and the command is not passed through a shell.', 'cliconsole') }}</div>
-                </div>
-            </div>
-            <div class="card-footer d-flex gap-2">
-                <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1" aria-hidden="true"></i>{{ __('Save', 'cliconsole') }}</button>
-                <a class="btn btn-secondary" href="{{ console_url }}">{{ __('Cancel', 'cliconsole') }}</a>
+                <form method="post" action="{{ save_url }}">
+                    <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="card-body p-4">
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold" for="cliconsole-php-binary">
+                                {{ __('PHP CLI binary path', 'cliconsole') }}
+                            </label>
+
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    {{ __('Executable path', 'cliconsole') }}
+                                </span>
+                                <input
+                                    id="cliconsole-php-binary"
+                                    name="php_binary"
+                                    type="text"
+                                    class="form-control font-monospace"
+                                    value="{{ config.php_binary|default('')|e }}"
+                                    placeholder="/usr/bin/php85"
+                                    autocomplete="off"
+                                    required
+                                >
+                            </div>
+
+                            <div class="form-text mt-2">
+                                {{ __('Enter an absolute path such as /usr/bin/php85. The executable must exist and be executable by the web server account.', 'cliconsole') }}
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mb-0">
+                            <div class="d-flex align-items-start gap-3">
+                                <i class="ti ti-lock mt-1 flex-shrink-0" aria-hidden="true"></i>
+                                <div>
+                                    <strong>{{ __('Execution boundary', 'cliconsole') }}</strong>
+                                    <div class="mt-1">
+                                        {{ __('CLI Console always invokes the real bin/console located under this GLPI installation. The configured PHP binary cannot be used to execute another script through this interface, and the command is not passed through a shell.', 'cliconsole') }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-device-floppy me-1" aria-hidden="true"></i>
+                            {{ __('Save', 'cliconsole') }}
+                        </button>
+                        <a class="btn btn-secondary" href="{{ console_url }}">
+                            {{ __('Cancel', 'cliconsole') }}
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
-    </form>
+    </div>
 </div>
 {% endblock content_body %}
-
-{% block javascripts %}
-{{ parent() }}
-<script>
-(() => {
-    const button = document.getElementById('cliconsole-check-version');
-    const result = document.getElementById('cliconsole-version-result');
-    if (!button || !result) return;
-    button.addEventListener('click', async () => {
-        button.disabled = true;
-        result.className = 'small mt-2 text-muted';
-        result.textContent = '{{ __('Checking GitHub...', 'cliconsole')|e('js') }}';
-        try {
-            const response = await fetch({{ version_check_url|json_encode|raw }}, {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: { 'Accept': 'application/json' }
-            });
-            const data = await response.json();
-            result.textContent = data.message || '{{ __('Version check completed.', 'cliconsole')|e('js') }}';
-            result.className = 'small mt-2 ' + (data.update_available ? 'text-warning' : (data.success ? 'text-success' : 'text-danger'));
-        } catch (error) {
-            result.textContent = '{{ __('Unable to check the GitHub version.', 'cliconsole')|e('js') }}';
-            result.className = 'small mt-2 text-danger';
-        } finally {
-            button.disabled = false;
-        }
-    });
-})();
-</script>
-{% endblock javascripts %}

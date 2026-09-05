@@ -21,7 +21,7 @@ It is intended for shared hosting and managed servers where a GLPI administrator
 
 ## Requirements
 
-- GLPI 11.x or 12.x.
+- GLPI 12.x only.
 - PHP 8.2 or newer.
 - `proc_open()` must not be disabled for the PHP web SAPI.
 - The configured PHP CLI executable must exist and be executable by the web server account.
@@ -58,9 +58,10 @@ This does not make GLPI console commands harmless. A Super-Admin may still execu
 
 On GLPI 12, the page itself requests GLPI's re-authentication window before the console is available. If that window expires while the page is open, the streaming action is refused until the console page is reloaded and re-authenticated again.
 
-## GLPI 11 compatibility
 
-Controllers are supported by GLPI 11+. The execution endpoint is a `POST` route under `/ajax`, and includes the CSRF token expected by GLPI 11. The router issue affecting non-GET plugin routes was fixed in GLPI 11.0.7, so current 11.x releases are recommended.
+## GLPI 12 compatibility
+
+CLI Console targets GLPI 12.x only and uses the native GLPI re-authentication (`sudo mode`) available in GLPI 12 for sensitive console access. The plugin uses modern Controllers and GLPI 12's native request protections.
 
 ## Uninstall
 
@@ -73,3 +74,45 @@ GPLv3+.
 ## GitHub version check
 
 The configuration page includes an optional version check against the official GitHub repository at `https://github.com/monta990/cliconsole`. The check is performed server-side and fails gracefully when GitHub is unavailable or the repository does not yet expose a readable plugin version.
+
+
+### Spanish (Mexico)
+
+The plugin includes the `es_MX` gettext catalog in `locales/es_MX.po` and
+`locales/es_MX.mo`. The source strings remain in English and use the `cliconsole`
+translation domain, so GLPI's selected `Español (México)` locale can load the
+plugin catalog through the normal plugin localization lifecycle.
+
+
+### Interactive terminal
+
+CLI Console uses a long-lived HTTP streaming request for the running
+`bin/console` process and separate authenticated HTTP requests for terminal
+input and control actions. It releases the PHP session lock before the
+long-running request so the same GLPI session can submit input concurrently.
+This avoids requiring a WebSocket server or an external worker daemon and is
+suitable for shared hosting.
+
+### Spanish (Mexico)
+
+The plugin includes complete `es_MX` gettext catalogs in `locales/es_MX.po`
+and `locales/es_MX.mo`.
+
+
+## Marketplace release
+
+The Marketplace metadata is provided in `plugin.xml`.
+
+For the Marketplace `download_url` to become valid, create a public GitHub
+release tagged `1.0.0` and upload the exact plugin archive as:
+
+`cliconsole-1.0.0.zip`
+
+The archive must contain the plugin in its top-level technical directory:
+
+```text
+cliconsole/
+```
+
+The published archive should be built from the same Git tag represented by
+the submitted `plugin.xml`.
