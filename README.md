@@ -3,7 +3,7 @@
 </p>
 <h1 align="center">CLI Console</h1>
 <p align="center">
-  <strong>GLPI plugin — Automatically generates PDF responsibility documents and loan contracts for IT assets assigned to users</strong>
+  <strong>GLPI plugin — Run GLPI bin/console commands through an authenticated web console when direct shell access is unavailable</strong>
 </p>
 <p align="center">
   <a href="https://github.com/glpi-project/glpi" target="_blank"><img src="https://img.shields.io/badge/GLPI-12.0%2B-blue" alt="GLPI compatibility"></a>
@@ -15,6 +15,8 @@
 ---
 
 ## Overview
+
+# CLI Console
 
 CLI Console is a GLPI plugin that provides an authenticated web terminal for `bin/console` commands.
 
