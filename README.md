@@ -97,24 +97,6 @@ long-running request so the same GLPI session can submit input concurrently.
 This avoids requiring a WebSocket server or an external worker daemon and is
 suitable for shared hosting.
 
-## Marketplace release
-
-The Marketplace metadata is provided in `plugin.xml`.
-
-For the Marketplace `download_url` to become valid, create a public GitHub
-release tagged `1.0.0` and upload the exact plugin archive as:
-
-`cliconsole-1.0.0.zip`
-
-The archive must contain the plugin in its top-level technical directory:
-
-```text
-cliconsole/
-```
-
-The published archive should be built from the same Git tag represented by
-the submitted `plugin.xml`.
-
 ### Resource limits and audit log
 
 To reduce denial-of-service and accidental resource exhaustion risks, the plugin enforces bounded command and argument sizes, a maximum of three active terminal sessions, a 15-minute execution limit per command, a 5 MiB limit for each captured output stream, a 64 KiB input queue, an 8 KiB input payload limit, and a 256 KiB maximum output chunk per HTTP response.
