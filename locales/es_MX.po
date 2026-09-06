@@ -234,3 +234,36 @@ msgstr "No se pudo crear el directorio de caché de versiones de CLI Console."
 
 msgid "Only GLPI console commands are accepted. The command is always executed with this GLPI installation real bin/console and is never passed through a shell."
 msgstr "Solo se aceptan comandos de consola de GLPI. El comando siempre se ejecuta con el bin/console real de esta instalación y nunca se pasa por un shell."
+
+msgid "The command is empty or exceeds the maximum allowed length."
+msgstr "El comando está vacío o supera la longitud máxima permitida."
+
+msgid "Too many command arguments were supplied."
+msgstr "Se proporcionaron demasiados argumentos para el comando."
+
+msgid "An invalid or oversized argument was supplied."
+msgstr "Se proporcionó un argumento no válido o demasiado grande."
+
+msgid "The maximum number of active terminal sessions has been reached."
+msgstr "Se alcanzó el número máximo de sesiones de terminal activas."
+
+msgid "This terminal session has already been started or is no longer available."
+msgstr "Esta sesión de terminal ya se inició o ya no está disponible."
+
+msgid "This terminal session is already in use."
+msgstr "Esta sesión de terminal ya está en uso."
+
+msgid "Unknown user"
+msgstr "Usuario desconocido"
+
+msgid "This terminal session is not accepting input."
+msgstr "Esta sesión de terminal no acepta entradas."
+
+msgid "The input exceeds the maximum allowed length."
+msgstr "La entrada supera la longitud máxima permitida."
+
+msgid "The terminal input queue is full."
+msgstr "La cola de entrada de la terminal está llena."
+
+msgid "This terminal session is no longer active."
+msgstr "Esta sesión de terminal ya no está activa."
