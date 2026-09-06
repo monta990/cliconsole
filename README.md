@@ -84,10 +84,6 @@ CLI Console targets GLPI 12.x only and uses the native GLPI re-authentication (`
 
 Deactivation removes the menu entry. Uninstallation removes the stored PHP CLI path. The plugin creates no database table and does not create a custom profile right.
 
-## License
-
-GPLv3+.
-
 ### Interactive terminal
 
 CLI Console uses a long-lived HTTP streaming request for the running
@@ -112,3 +108,33 @@ Each command execution is recorded in a JSON Lines audit log at:
 The log directory follows GLPI's configured `GLPI_LOG_DIR` location (for example, `files/_log` in a basic installation). The plugin does not place audit records inside its own plugin directory.
 
 The log records the UTC timestamp, event (`start` or `finish`), GLPI user ID, username, session ID, sanitized command, final state, exit code, and duration when available. The log is protected with filesystem permissions and rotates to `cliconsole.log.1` when it reaches 5 MiB. Interactive input values are not written to the audit log, which avoids recording passwords or other values entered interactively.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## Author
+
+**Edwin Elias Alvarez** — [GitHub](https://github.com/monta990)
+
+---
+
+## Buy me a coffee :)
+
+If you like my work, you can support me by a donate here:
+
+<a href="https://www.buymeacoffee.com/monta990" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-yellow.png" alt="Buy Me A Coffee" height="51px" width="210px"></a>
+
+---
+
+## License
+
+GPL v3 or later. See [LICENSE](LICENSE).
+
+## Issues
+
+Report bugs or request features on the [issue tracker](https://github.com/monta990/cliconsole/issues).
+
+---
