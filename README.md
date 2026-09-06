@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="Responsivas logo" width="96">
+  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="CLI Console logo" width="96">
 </p>
 <h1 align="center">CLI Console</h1>
 <p align="center">
@@ -87,10 +87,6 @@ Deactivation removes the menu entry. Uninstallation removes the stored PHP CLI p
 ## License
 
 GPLv3+.
-
-## GitHub version check
-
-The configuration page includes an optional version check against the official GitHub repository at `https://github.com/monta990/cliconsole`. The check is performed server-side and fails gracefully when GitHub is unavailable or the repository does not yet expose a readable plugin version.
 
 ### Interactive terminal
 
