@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="Responsivas logo" width="96">
 </p>
-<h1 align="center">Responsibility Forms</h1>
+<h1 align="center">CLI Console</h1>
 <p align="center">
   <strong>GLPI plugin — Automatically generates PDF responsibility documents and loan contracts for IT assets assigned to users</strong>
 </p>
@@ -15,8 +15,6 @@
 ---
 
 ## Overview
-
-# CLI Console
 
 CLI Console is a GLPI plugin that provides an authenticated web terminal for `bin/console` commands.
 
