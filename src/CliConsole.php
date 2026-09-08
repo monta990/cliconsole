@@ -521,13 +521,28 @@ final class CliConsole extends CommonDBTM
     {
         $redactNext = false;
         $safe = [];
+        $commandName = isset($arguments[0]) ? strtolower((string) $arguments[0]) : '';
 
-        foreach ($arguments as $argument) {
+        foreach ($arguments as $index => $argument) {
             $value = (string) $argument;
 
             if ($redactNext) {
                 $safe[] = '[REDACTED]';
                 $redactNext = false;
+                continue;
+            }
+
+            // glpi:config:set (and its config:set alias) accepts a sensitive
+            // configuration key and its value as positional arguments.
+            // Those values do not have a leading dash, so option-based
+            // redaction alone cannot protect them.
+            if (
+                ($commandName === 'glpi:config:set' || $commandName === 'config:set')
+                && $index === 2
+                && isset($arguments[1])
+                && self::isSensitiveName((string) $arguments[1])
+            ) {
+                $safe[] = '[REDACTED]';
                 continue;
             }
 
@@ -544,13 +559,7 @@ final class CliConsole extends CommonDBTM
 
             if (preg_match('/^(--?)([^=]+)(?:=(.*))?$/', $value, $match) === 1) {
                 $optionName = strtolower($match[2]);
-                $isSensitive = str_contains($optionName, 'pass')
-                    || str_contains($optionName, 'secret')
-                    || str_contains($optionName, 'token')
-                    || str_contains($optionName, 'key')
-                    || str_contains($optionName, 'credential');
-
-                if ($isSensitive) {
+                if (self::isSensitiveName($optionName)) {
                     $safe[] = isset($match[3])
                         ? $match[1] . $match[2] . '=[REDACTED]'
                         : $value;
@@ -563,5 +572,16 @@ final class CliConsole extends CommonDBTM
         }
 
         return implode(' ', $safe);
+    }
+
+    private static function isSensitiveName(string $name): bool
+    {
+        $name = strtolower($name);
+
+        return str_contains($name, 'pass')
+            || str_contains($name, 'secret')
+            || str_contains($name, 'token')
+            || str_contains($name, 'key')
+            || str_contains($name, 'credential');
     }
 }

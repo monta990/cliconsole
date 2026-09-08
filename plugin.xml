@@ -23,9 +23,9 @@
   </authors>
   <versions>
     <version>
-      <num>1.0.1</num>
+      <num>1.0.2</num>
       <compatibility>~12.0.0</compatibility>
-      <download_url>https://github.com/monta990/cliconsole/releases/download/1.0.1/cliconsole-1.0.1.zip</download_url>
+      <download_url>https://github.com/monta990/cliconsole/releases/download/1.0.2/cliconsole-1.0.2.zip</download_url>
     </version>
   </versions>
   <langs>
