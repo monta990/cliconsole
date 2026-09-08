@@ -6,6 +6,35 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-09-07
+
+### Security
+
+- Fixed short password-option redaction so attached values such as `-pSECRET` are never written to the audit log.
+- Removed an unused local variable from command redaction logic.
+- Hardened audit-log writes to require complete line writes and successful flushes.
+- Added exception-safe worker finalization so unexpected failures terminate child processes when needed, release locks, close resources, remove worker markers, and emit a final audit event when possible.
+- Preserved the standard GLPI audit log during uninstall while cleaning plugin-owned temporary session and version-cache data when no worker is active.
+- Documented supported Unix/Linux environments.
+- Fixed the command shell-operator validation regex that could cause a PCRE compilation warning at runtime.
+- Correctly rejects shell metacharacters, backslashes, and NUL bytes without blocking valid command characters such as `x` or `0`.
+- Made GLPI 12 re-authentication fail closed when `ReAuthManager` is unavailable, for both console and configuration routes.
+- Validate the configured PHP executable as the actual PHP CLI interpreter before storing it and again before use; store its resolved real path.
+- Added the resolved PHP binary to the audit log.
+- Expanded command redaction to cover GLPI password and credential options such as `-p`, `--pass`, and `--db-password`.
+- Corrected shell-operator parsing so ordinary `x` and `0` characters are accepted while NUL, backslash, and shell metacharacters remain blocked.
+- Hardened audit-log creation and rotation to require restrictive `0600` permissions and to avoid silent permission failures.
+- Added a per-session owner binding to prevent one Super-Admin from operating another user's session when a session identifier is known.
+- Changed the output polling endpoint to POST so terminal session identifiers are not exposed in query strings or normal web access logs.
+
+### Code quality
+
+- Centralized worker limits in a shared `RuntimeLimits` class.
+- Removed the unused execution-time constant from `CliConsole`.
+- Centralized audit-log writing in `AuditLogger` instead of maintaining divergent controller/worker implementations.
+- Centralized PHP CLI validation in `PhpCliValidator`.
+- Cached the Super-Admin profile check for the current request.
+
 ## [1.0.0] - 2026-09-06
 
 ### Security hardening
