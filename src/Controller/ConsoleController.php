@@ -8,6 +8,7 @@ use Config as GlpiConfig;
 use Glpi\Controller\AbstractController;
 use Glpi\Security\ReAuth\ReAuthManager;
 use GlpiPlugin\Cliconsole\CliConsole;
+use GlpiPlugin\Cliconsole\RuntimeLimits;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,9 +29,7 @@ final class ConsoleController extends AbstractController
         $this->loadPluginLanguage();
         $this->checkAccess();
 
-        if (class_exists(ReAuthManager::class)) {
-            ReAuthManager::getInstance()->checkReAuthenticationOrRedirect();
-        }
+        $this->checkReAuthPage();
 
         global $CFG_GLPI;
         $config = GlpiConfig::getConfigurationValues('plugin:cliconsole');
@@ -59,7 +58,13 @@ final class ConsoleController extends AbstractController
         }
 
         CliConsole::parseCommand($commandLine);
-        CliConsole::resolveExecutables();
+        [$phpBinary] = CliConsole::resolveExecutables();
+
+        $userId = CliConsole::getCurrentUserId();
+        $username = trim((string) ($_SESSION['glpiname'] ?? ''));
+        if ($username === '') {
+            $username = __('Unknown user', 'cliconsole');
+        }
 
         $baseDir = CliConsole::getSessionBaseDir();
         $allocationLock = CliConsole::acquireSessionAllocationLock($baseDir);
@@ -69,7 +74,7 @@ final class ConsoleController extends AbstractController
             // concurrent Start requests from creating an unbounded number of
             // abandoned session directories.
             CliConsole::cleanupOldSessions($baseDir);
-            if (CliConsole::countReservedSessions($baseDir) >= CliConsole::MAX_ACTIVE_SESSIONS) {
+            if (CliConsole::countReservedSessions($baseDir) >= RuntimeLimits::MAX_ACTIVE_SESSIONS) {
                 throw new BadRequestHttpException(__('The maximum number of active terminal sessions has been reached.', 'cliconsole'));
             }
 
@@ -88,19 +93,39 @@ final class ConsoleController extends AbstractController
                 @chmod($sessionDir . '/' . $file, 0600);
             }
 
-            @touch($sessionDir . '/heartbeat');
-            @chmod($sessionDir . '/heartbeat', 0600);
-            @file_put_contents(
+            touch($sessionDir . '/heartbeat');
+            chmod($sessionDir . '/heartbeat', 0600);
+
+            $status = [
+                'state' => 'ready',
+                'exit_code' => null,
+                'started_at' => null,
+                'finished_at' => null,
+            ];
+            if (file_put_contents(
                 $sessionDir . '/status.json',
-                json_encode([
-                    'state' => 'ready',
-                    'exit_code' => null,
-                    'started_at' => null,
-                    'finished_at' => null,
-                ], JSON_UNESCAPED_SLASHES),
+                json_encode($status, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
                 LOCK_EX
-            );
-            @chmod($sessionDir . '/status.json', 0600);
+            ) === false) {
+                CliConsole::removeSession($sessionDir);
+                throw new \RuntimeException(__('Unable to initialize the terminal session.', 'cliconsole'));
+            }
+            chmod($sessionDir . '/status.json', 0600);
+
+            $metadata = [
+                'user_id' => $userId,
+                'username' => $username,
+                'created_at' => time(),
+            ];
+            if (file_put_contents(
+                $sessionDir . '/metadata.json',
+                json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                LOCK_EX
+            ) === false) {
+                CliConsole::removeSession($sessionDir);
+                throw new \RuntimeException(__('Unable to initialize the terminal session.', 'cliconsole'));
+            }
+            chmod($sessionDir . '/metadata.json', 0600);
 
             return new JsonResponse(['success' => true, 'session' => $sessionId]);
         } finally {
@@ -121,6 +146,7 @@ final class ConsoleController extends AbstractController
         }
 
         $sessionDir = CliConsole::getSessionDir($sessionId);
+        $metadata = CliConsole::assertSessionOwner($sessionDir);
         $statusFile = $sessionDir . '/status.json';
         $status = CliConsole::readStatus($statusFile);
         if (($status['state'] ?? '') !== 'ready') {
@@ -174,33 +200,42 @@ final class ConsoleController extends AbstractController
             CliConsole::releaseSessionAllocationLock($allocationLock);
         }
 
-        global $CFG_GLPI;
-        $userId = (int) ($_SESSION['glpiID'] ?? $_SESSION['glpiid'] ?? 0);
-        $username = trim((string) ($_SESSION['glpiname'] ?? ''));
-        if ($username === '') {
-            $username = __('Unknown user', 'cliconsole');
-        }
+        $userId = (int) ($metadata['user_id'] ?? CliConsole::getCurrentUserId());
+        $username = (string) ($metadata['username'] ?? ($_SESSION['glpiname'] ?? ''));
+        $redactedCommand = CliConsole::redactCommand($arguments);
 
-        $metadata = [
-            'user_id' => $userId,
-            'username' => $username,
-            'command' => CliConsole::redactCommand($arguments),
-            'started_at' => time(),
-        ];
-        @file_put_contents(
+        $metadata['command'] = $redactedCommand;
+        $metadata['php_binary'] = $phpBinary;
+        $metadata['started_at'] = time();
+        if (file_put_contents(
             $sessionDir . '/metadata.json',
-            json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             LOCK_EX
-        );
-        @chmod($sessionDir . '/metadata.json', 0600);
+        ) === false) {
+            @unlink($sessionDir . '/worker.lock');
+            CliConsole::removeSession($sessionDir);
+            throw new \RuntimeException(__('Unable to initialize the terminal session.', 'cliconsole'));
+        }
+        chmod($sessionDir . '/metadata.json', 0600);
 
-        CliConsole::writeAudit([
+        try {
+            CliConsole::writeAudit([
             'event' => 'start',
             'session_id' => $sessionId,
             'user_id' => $userId,
             'username' => $username,
-            'command' => CliConsole::redactCommand($arguments),
+            'command' => $redactedCommand,
+            'php_binary' => $phpBinary,
         ]);
+        } catch (\Throwable $e) {
+            @unlink($sessionDir . '/worker.lock');
+            CliConsole::removeSession($sessionDir);
+            throw new \RuntimeException(
+                __('Unable to securely initialize the CLI Console audit log.', 'cliconsole'),
+                0,
+                $e
+            );
+        }
 
         $worker = dirname(__DIR__) . '/TerminalWorker.php';
 
@@ -239,10 +274,11 @@ final class ConsoleController extends AbstractController
                 'session_id' => $sessionId,
                 'user_id' => $userId,
                 'username' => $username,
-                'command' => CliConsole::redactCommand($arguments),
+                'command' => $redactedCommand,
                 'state' => 'error',
                 'exit_code' => 127,
                 'duration_seconds' => 0,
+                'php_binary' => $phpBinary,
             ]);
             throw new \RuntimeException(__('Unable to start the terminal worker.', 'cliconsole'));
         }
@@ -261,13 +297,14 @@ final class ConsoleController extends AbstractController
         $this->checkReAuth();
 
         $sessionDir = CliConsole::getSessionDir($request->request->getString('session'));
+        CliConsole::assertSessionOwner($sessionDir);
         $status = CliConsole::readStatus($sessionDir . '/status.json');
         if (!in_array(($status['state'] ?? ''), ['starting', 'running'], true)) {
             throw new BadRequestHttpException(__('This terminal session is not accepting input.', 'cliconsole'));
         }
 
         $value = $request->request->getString('input');
-        if (strlen($value) > CliConsole::MAX_INPUT_LENGTH) {
+        if (strlen($value) > RuntimeLimits::MAX_INPUT_LENGTH) {
             throw new BadRequestHttpException(__('The input exceeds the maximum allowed length.', 'cliconsole'));
         }
 
@@ -276,7 +313,7 @@ final class ConsoleController extends AbstractController
             clearstatcache(true, $queueFile);
             $currentSize = (int) (@filesize($queueFile) ?: 0);
             $payload = json_encode(['type' => 'input', 'value' => $value], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
-            if ($currentSize + strlen($payload) > CliConsole::MAX_QUEUE_SIZE) {
+            if ($currentSize + strlen($payload) > RuntimeLimits::MAX_QUEUE_SIZE) {
                 throw new BadRequestHttpException(__('The terminal input queue is full.', 'cliconsole'));
             }
             file_put_contents($queueFile, $payload, FILE_APPEND | LOCK_EX);
@@ -287,17 +324,19 @@ final class ConsoleController extends AbstractController
         return new JsonResponse(['success' => true]);
     }
 
-    #[Route('/ajax/Console/Output', name: 'cliconsole_console_output', methods: ['GET'])]
+    #[Route('/ajax/Console/Output', name: 'cliconsole_console_output', methods: ['POST'])]
     public function output(Request $request): Response
     {
         $this->loadPluginLanguage();
         $this->checkAccess();
         $this->checkReAuth();
 
-        $sessionDir = CliConsole::getSessionDir($request->query->getString('session'));
-        @touch($sessionDir . '/heartbeat');
-        $stdoutOffset = max(0, $request->query->getInt('stdout_offset'));
-        $stderrOffset = max(0, $request->query->getInt('stderr_offset'));
+        $sessionDir = CliConsole::getSessionDir($request->request->getString('session'));
+        CliConsole::assertSessionOwner($sessionDir);
+        touch($sessionDir . '/heartbeat');
+        chmod($sessionDir . '/heartbeat', 0600);
+        $stdoutOffset = max(0, $request->request->getInt('stdout_offset'));
+        $stderrOffset = max(0, $request->request->getInt('stderr_offset'));
 
         [$stdout, $stdoutOffset] = CliConsole::readTailFromOffset($sessionDir . '/stdout.log', $stdoutOffset);
         [$stderr, $stderrOffset] = CliConsole::readTailFromOffset($sessionDir . '/stderr.log', $stderrOffset);
@@ -320,6 +359,7 @@ final class ConsoleController extends AbstractController
         $this->checkReAuth();
 
         $sessionDir = CliConsole::getSessionDir($request->request->getString('session'));
+        CliConsole::assertSessionOwner($sessionDir);
         $status = CliConsole::readStatus($sessionDir . '/status.json');
         if (!in_array(($status['state'] ?? ''), ['starting', 'running'], true)) {
             throw new BadRequestHttpException(__('This terminal session is no longer active.', 'cliconsole'));
@@ -334,7 +374,7 @@ final class ConsoleController extends AbstractController
         $payload = json_encode(['type' => $action], JSON_UNESCAPED_SLASHES) . "\n";
         clearstatcache(true, $queueFile);
         $currentSize = (int) (@filesize($queueFile) ?: 0);
-        if ($currentSize + strlen($payload) > CliConsole::MAX_QUEUE_SIZE) {
+        if ($currentSize + strlen($payload) > RuntimeLimits::MAX_QUEUE_SIZE) {
             throw new BadRequestHttpException(__('The terminal input queue is full.', 'cliconsole'));
         }
         file_put_contents($queueFile, $payload, FILE_APPEND | LOCK_EX);
@@ -351,12 +391,26 @@ final class ConsoleController extends AbstractController
         }
     }
 
+    private function checkReAuthPage(): void
+    {
+        if (!class_exists(ReAuthManager::class)) {
+            throw new AccessDeniedHttpException(
+                __('Re-authentication support is unavailable.', 'cliconsole')
+            );
+        }
+
+        ReAuthManager::getInstance()->checkReAuthenticationOrRedirect();
+    }
+
     private function checkReAuth(): void
     {
-        if (
-            class_exists(ReAuthManager::class)
-            && !ReAuthManager::getInstance()->isReAuthenticated()
-        ) {
+        if (!class_exists(ReAuthManager::class)) {
+            throw new AccessDeniedHttpException(
+                __('Re-authentication support is unavailable.', 'cliconsole')
+            );
+        }
+
+        if (!ReAuthManager::getInstance()->isReAuthenticated()) {
             throw new AccessDeniedHttpException(
                 __('Re-authentication is required. Reload the console page and verify your identity again.', 'cliconsole')
             );

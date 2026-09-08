@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="CLI Console logo" width="96">
+  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="CLI Console logo">
 </p>
 <h1 align="center">CLI Console</h1>
 <p align="center">
@@ -40,6 +40,7 @@ It is intended for shared hosting and managed servers where a GLPI administrator
 ## Requirements
 
 - GLPI 12.x only.
+- Unix/Linux environments.
 - PHP 8.2 or newer.
 - `proc_open()` must not be disabled for the PHP web SAPI.
 - The configured PHP CLI executable must exist and be executable by the web server account.
@@ -66,9 +67,9 @@ migration:timestamps
 
 CLI Console is **not** a general-purpose server shell.
 
-The interface never asks the user for a script path. It always resolves `GLPI_ROOT/bin/console` and verifies that its real path is directly under the GLPI installation's `bin` directory. A symlink escaping that directory is rejected.
+Each terminal session is bound to the GLPI user who created it, so another Super-Admin cannot operate a different user's session merely by obtaining its session identifier. The interface never asks the user for a script path. It always resolves `GLPI_ROOT/bin/console` and verifies that its real path is directly under the GLPI installation's `bin` directory. A symlink escaping that directory is rejected.
 
-The PHP executable path is an administrator-controlled setting. It is used only as the executable in `proc_open()`; the script argument is always the resolved GLPI `bin/console`.
+The PHP executable path is an administrator-controlled setting. It is resolved and validated as a real PHP CLI interpreter before it is stored and again before execution. The script argument is always the resolved GLPI `bin/console`.
 
 The user's input is parsed into arguments and passed to `proc_open()` as an array. No shell command string is constructed, so shell metacharacters are not interpreted. Common shell operators are also rejected as an additional defensive measure.
 
@@ -107,7 +108,7 @@ Each command execution is recorded in a JSON Lines audit log at:
 
 The log directory follows GLPI's configured `GLPI_LOG_DIR` location (for example, `files/_log` in a basic installation). The plugin does not place audit records inside its own plugin directory.
 
-The log records the UTC timestamp, event (`start` or `finish`), GLPI user ID, username, session ID, sanitized command, final state, exit code, and duration when available. The log is protected with filesystem permissions and rotates to `cliconsole.log.1` when it reaches 5 MiB. Interactive input values are not written to the audit log, which avoids recording passwords or other values entered interactively.
+The log records the UTC timestamp, event (`start` or `finish`), GLPI user ID, username, session ID, sanitized command, resolved PHP CLI binary, final state, exit code, and duration when available. Secret-bearing command options such as `-p`, `--password`, `--pass`, `--db-password`, `--secret`, `--token`, `--key`, and `--credential` have their values redacted. The log is protected with filesystem permissions and rotates to `cliconsole.log.1` when it reaches 5 MiB. Interactive input values are not written to the audit log, which avoids recording passwords or other values entered interactively.
 
 ## Changelog
 

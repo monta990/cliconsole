@@ -8,21 +8,10 @@ use CommonDBTM;
 use Profile as GlpiProfile;
 use RuntimeException;
 
+
 final class CliConsole extends CommonDBTM
 {
-    public const MAX_COMMAND_LENGTH = 4096;
-    public const MAX_ARGUMENTS = 64;
-    public const MAX_ARGUMENT_LENGTH = 1024;
-    public const MAX_INPUT_LENGTH = 8192;
-    public const MAX_QUEUE_SIZE = 65536;
-    public const MAX_OUTPUT_SIZE = 5 * 1024 * 1024;
-    public const MAX_OUTPUT_CHUNK = 256 * 1024;
-    public const MAX_EXECUTION_TIME = 900;
-    public const MAX_ACTIVE_SESSIONS = 3;
-    public const SESSION_RETENTION = 21600; // 6 hours for completed sessions.
-    public const READY_SESSION_RETENTION = 900; // 15 minutes for unstarted sessions.
-    public const STALE_RUNNING_SESSION = 1200; // 20 minutes; worker max is 15 minutes.
-    public const AUDIT_MAX_SIZE = 5 * 1024 * 1024;
+    private static ?bool $isSuperAdmin = null;
 
     public static function getTypeName($nb = 0): string
     {
@@ -41,10 +30,42 @@ final class CliConsole extends CommonDBTM
 
     public static function isSuperAdmin(): bool
     {
-        $profileId = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
+        if (self::$isSuperAdmin !== null) {
+            return self::$isSuperAdmin;
+        }
 
-        return $profileId > 0
+        $profileId = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
+        self::$isSuperAdmin = $profileId > 0
             && in_array($profileId, GlpiProfile::getSuperAdminProfilesId(), true);
+
+        return self::$isSuperAdmin;
+    }
+
+    public static function getCurrentUserId(): int
+    {
+        return (int) ($_SESSION['glpiID'] ?? $_SESSION['glpiid'] ?? 0);
+    }
+
+    public static function assertSessionOwner(string $sessionDir): array
+    {
+        $metadataFile = $sessionDir . DIRECTORY_SEPARATOR . 'metadata.json';
+        if (!is_file($metadataFile)) {
+            throw new RuntimeException(__('Terminal session metadata is unavailable.', 'cliconsole'));
+        }
+
+        $metadata = json_decode((string) file_get_contents($metadataFile), true);
+        if (!is_array($metadata)) {
+            throw new RuntimeException(__('Terminal session metadata is invalid.', 'cliconsole'));
+        }
+
+        $ownerId = (int) ($metadata['user_id'] ?? 0);
+        if ($ownerId <= 0 || $ownerId !== self::getCurrentUserId()) {
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
+                __('This terminal session belongs to another user.', 'cliconsole')
+            );
+        }
+
+        return $metadata;
     }
 
     public static function getMenuContent(): array
@@ -132,7 +153,7 @@ final class CliConsole extends CommonDBTM
             if (in_array($state, ['starting', 'running'], true)) {
                 // Only clean a non-locked running session after its heartbeat has
                 // become stale. This covers workers that crashed unexpectedly.
-                if ($heartbeat <= 0 || $heartbeat < ($now - self::STALE_RUNNING_SESSION)) {
+                if ($heartbeat <= 0 || $heartbeat < ($now - RuntimeLimits::STALE_RUNNING_SESSION)) {
                     self::removeSession($dir);
                 }
                 continue;
@@ -145,7 +166,7 @@ final class CliConsole extends CommonDBTM
                     $heartbeat
                 );
 
-                if ($activity > 0 && $activity < ($now - self::READY_SESSION_RETENTION)) {
+                if ($activity > 0 && $activity < ($now - RuntimeLimits::READY_SESSION_RETENTION)) {
                     self::removeSession($dir);
                 }
                 continue;
@@ -157,7 +178,7 @@ final class CliConsole extends CommonDBTM
                 $heartbeat
             );
 
-            if ($activity > 0 && $activity < ($now - self::SESSION_RETENTION)) {
+            if ($activity > 0 && $activity < ($now - RuntimeLimits::SESSION_RETENTION)) {
                 self::removeSession($dir);
             }
         }
@@ -221,13 +242,13 @@ final class CliConsole extends CommonDBTM
 
     public static function parseCommand(string $commandLine): array
     {
-        if ($commandLine === '' || strlen($commandLine) > self::MAX_COMMAND_LENGTH) {
+        if ($commandLine === '' || strlen($commandLine) > RuntimeLimits::MAX_COMMAND_LENGTH) {
             throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
                 __('The command is empty or exceeds the maximum allowed length.', 'cliconsole')
             );
         }
 
-        if (preg_match('/[;&|`$<>\\\x00]/', $commandLine)) {
+        if (preg_match('~[;&|`$<>\\\\]|\x00~', $commandLine)) {
             throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
                 __('Shell operators are not allowed. Enter only a GLPI console command and its arguments.', 'cliconsole')
             );
@@ -242,14 +263,14 @@ final class CliConsole extends CommonDBTM
             );
         }
 
-        if (count($tokens) > self::MAX_ARGUMENTS) {
+        if (count($tokens) > RuntimeLimits::MAX_ARGUMENTS) {
             throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
                 __('Too many command arguments were supplied.', 'cliconsole')
             );
         }
 
         foreach ($tokens as $token) {
-            if (str_contains($token, "\0") || strlen($token) > self::MAX_ARGUMENT_LENGTH) {
+            if (str_contains($token, "\0") || strlen($token) > RuntimeLimits::MAX_ARGUMENT_LENGTH) {
                 throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
                     __('An invalid or oversized argument was supplied.', 'cliconsole')
                 );
@@ -383,9 +404,9 @@ final class CliConsole extends CommonDBTM
             return ['', $offset];
         }
 
-        if ($size > self::MAX_OUTPUT_SIZE) {
+        if ($size > RuntimeLimits::MAX_OUTPUT_SIZE) {
             // The worker enforces the hard cap; never serve more than the safe limit.
-            $size = self::MAX_OUTPUT_SIZE;
+            $size = RuntimeLimits::MAX_OUTPUT_SIZE;
         }
 
         if ($offset < 0 || $offset > $size) {
@@ -396,7 +417,7 @@ final class CliConsole extends CommonDBTM
             return ['', $size];
         }
 
-        $length = min(self::MAX_OUTPUT_CHUNK, $size - $offset);
+        $length = min(RuntimeLimits::MAX_OUTPUT_CHUNK, $size - $offset);
         $fp = fopen($file, 'rb');
         if ($fp === false) {
             return ['', $offset];
@@ -441,12 +462,20 @@ final class CliConsole extends CommonDBTM
         $config = \Config::getConfigurationValues('plugin:cliconsole');
         $phpBinary = trim((string) ($config['php_binary'] ?? ''));
 
+        if ($phpBinary === '' || str_contains($phpBinary, "\0") || !str_starts_with($phpBinary, '/')) {
+            throw new RuntimeException(
+                __('Enter an absolute path to the PHP CLI executable.', 'cliconsole')
+            );
+        }
+
         $realPhp = realpath($phpBinary);
         if ($realPhp === false || !is_file($realPhp) || !is_executable($realPhp)) {
             throw new RuntimeException(
                 __('The configured PHP CLI binary does not exist or is not executable.', 'cliconsole')
             );
         }
+
+        self::validatePhpCliBinary($realPhp);
 
         $glpiRoot = realpath(GLPI_ROOT);
         $console = realpath(GLPI_ROOT . '/bin/console');
@@ -463,6 +492,11 @@ final class CliConsole extends CommonDBTM
         return [$realPhp, $console];
     }
 
+    public static function validatePhpCliBinary(string $phpBinary): void
+    {
+        PhpCliValidator::assertValid($phpBinary, GLPI_ROOT);
+    }
+
     public static function getAuditLogPath(): string
     {
         $logDir = defined('GLPI_LOG_DIR')
@@ -474,61 +508,22 @@ final class CliConsole extends CommonDBTM
         }
 
         $path = rtrim($logDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'cliconsole.log';
-
-        if (!file_exists($path)) {
-            @touch($path);
-        }
-        @chmod($path, 0600);
-
+        AuditLogger::prepare($path);
         return $path;
     }
 
     public static function writeAudit(array $event): void
     {
-        $logFile = self::getAuditLogPath();
-        $lockFile = dirname($logFile) . DIRECTORY_SEPARATOR . 'cliconsole.lock';
-        $lock = @fopen($lockFile, 'c');
-        if (!is_resource($lock)) {
-            return;
-        }
-
-        if (!@flock($lock, LOCK_EX)) {
-            fclose($lock);
-            return;
-        }
-
-        @chmod($lockFile, 0600);
-        clearstatcache(true, $logFile);
-        if ((int) (@filesize($logFile) ?: 0) >= self::AUDIT_MAX_SIZE) {
-            @rename($logFile, $logFile . '.1');
-            @touch($logFile);
-        }
-
-        $record = [
-            'timestamp' => gmdate('c'),
-            ...$event,
-        ];
-
-        @file_put_contents(
-            $logFile,
-            json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE) . PHP_EOL,
-            FILE_APPEND | LOCK_EX
-        );
-
-        @chmod($logFile, 0600);
-        @flock($lock, LOCK_UN);
-        fclose($lock);
+        AuditLogger::write(self::getAuditLogPath(), $event);
     }
 
     public static function redactCommand(array $arguments): string
     {
         $redactNext = false;
         $safe = [];
-        $sensitive = ['password', 'secret', 'token', 'api-key', 'apikey'];
 
         foreach ($arguments as $argument) {
             $value = (string) $argument;
-            $lower = strtolower($value);
 
             if ($redactNext) {
                 $safe[] = '[REDACTED]';
@@ -536,25 +531,35 @@ final class CliConsole extends CommonDBTM
                 continue;
             }
 
-            $matched = false;
-            foreach ($sensitive as $name) {
-                if ($lower === '--' . $name || $lower === '-' . $name) {
-                    $safe[] = $value;
-                    $redactNext = true;
-                    $matched = true;
-                    break;
-                }
-
-                if (str_starts_with($lower, '--' . $name . '=')) {
-                    $safe[] = substr($value, 0, strpos($value, '=') + 1) . '[REDACTED]';
-                    $matched = true;
-                    break;
-                }
-            }
-
-            if (!$matched) {
+            if ($value === '-p') {
                 $safe[] = $value;
+                $redactNext = true;
+                continue;
             }
+
+            if (str_starts_with($value, '-p') && !str_starts_with($value, '--') && strlen($value) > 2) {
+                $safe[] = '-p[REDACTED]';
+                continue;
+            }
+
+            if (preg_match('/^(--?)([^=]+)(?:=(.*))?$/', $value, $match) === 1) {
+                $optionName = strtolower($match[2]);
+                $isSensitive = str_contains($optionName, 'pass')
+                    || str_contains($optionName, 'secret')
+                    || str_contains($optionName, 'token')
+                    || str_contains($optionName, 'key')
+                    || str_contains($optionName, 'credential');
+
+                if ($isSensitive) {
+                    $safe[] = isset($match[3])
+                        ? $match[1] . $match[2] . '=[REDACTED]'
+                        : $value;
+                    $redactNext = !isset($match[3]);
+                    continue;
+                }
+            }
+
+            $safe[] = $value;
         }
 
         return implode(' ', $safe);

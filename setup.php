@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Glpi\Plugin\Hooks;
 use GlpiPlugin\Cliconsole\CliConsole;
 
-define('PLUGIN_CLICONSOLE_VERSION', '1.0.0');
+define('PLUGIN_CLICONSOLE_VERSION', '1.0.1');
 define('PLUGIN_CLICONSOLE_MIN_GLPI', '12.0.0');
 define('PLUGIN_CLICONSOLE_MAX_GLPI', '13.0.0');
 
