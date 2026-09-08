@@ -18,6 +18,8 @@
 
 # CLI Console
 
+**Current release: 1.0.2**
+
 CLI Console is a GLPI plugin that provides an authenticated web terminal for `bin/console` commands.
 
 It is intended for shared hosting and managed servers where a GLPI administrator can use the web interface but cannot open an SSH or local shell session.
