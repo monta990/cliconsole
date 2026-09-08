@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="CLI Console logo">
+  <img src="https://raw.githubusercontent.com/monta990/cliconsole/main/logo.png" alt="CLI Console logo" width="96">
 </p>
 <h1 align="center">CLI Console</h1>
 <p align="center">
