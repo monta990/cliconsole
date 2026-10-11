@@ -45,7 +45,7 @@ function plugin_version_cliconsole(): array
                 'max' => PLUGIN_CLICONSOLE_MAX_GLPI,
             ],
             'php' => [
-                'min' => '8.2',
+                'min' => '8.3',
             ],
         ],
     ];
