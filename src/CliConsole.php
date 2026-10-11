@@ -521,28 +521,28 @@ final class CliConsole extends CommonDBTM
     {
         $redactNext = false;
         $safe = [];
-        $commandName = isset($arguments[0]) ? strtolower((string) $arguments[0]) : '';
 
-        foreach ($arguments as $index => $argument) {
+        // Do not assume the command is at index zero. Symfony accepts global
+        // options before the command, including options whose value is a
+        // separate token (for example: --env prod glpi:config:set ...).
+        // For audit purposes, fail closed if either exact config:set command
+        // token appears anywhere in the parsed token list. This can only hide
+        // additional audit arguments; it never changes the arguments sent to
+        // the worker, and prevents positional secrets from being logged even
+        // when global-option parsing would shift the command's index.
+        foreach ($arguments as $argument) {
+            $candidate = strtolower((string) $argument);
+            if (in_array($candidate, ['glpi:config:set', 'config:set'], true)) {
+                return (string) $argument . ' [arguments withheld]';
+            }
+        }
+
+        foreach ($arguments as $argument) {
             $value = (string) $argument;
 
             if ($redactNext) {
                 $safe[] = '[REDACTED]';
                 $redactNext = false;
-                continue;
-            }
-
-            // glpi:config:set (and its config:set alias) accepts a sensitive
-            // configuration key and its value as positional arguments.
-            // Those values do not have a leading dash, so option-based
-            // redaction alone cannot protect them.
-            if (
-                ($commandName === 'glpi:config:set' || $commandName === 'config:set')
-                && $index === 2
-                && isset($arguments[1])
-                && self::isSensitiveName((string) $arguments[1])
-            ) {
-                $safe[] = '[REDACTED]';
                 continue;
             }
 
