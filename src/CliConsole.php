@@ -523,26 +523,21 @@ final class CliConsole extends CommonDBTM
         $safe = [];
         $commandName = isset($arguments[0]) ? strtolower((string) $arguments[0]) : '';
 
-        foreach ($arguments as $index => $argument) {
+        // Configuration values are arbitrary and may contain credentials under
+        // names that cannot be identified reliably. Options may also appear
+        // before or between positional arguments, so never log any arguments
+        // for this command family. The original argument array is still passed
+        // unchanged to the worker; this affects audit metadata only.
+        if (in_array($commandName, ['glpi:config:set', 'config:set'], true)) {
+            return (string) $arguments[0] . ' [arguments withheld]';
+        }
+
+        foreach ($arguments as $argument) {
             $value = (string) $argument;
 
             if ($redactNext) {
                 $safe[] = '[REDACTED]';
                 $redactNext = false;
-                continue;
-            }
-
-            // glpi:config:set (and its config:set alias) accepts a sensitive
-            // configuration key and its value as positional arguments.
-            // Those values do not have a leading dash, so option-based
-            // redaction alone cannot protect them.
-            if (
-                ($commandName === 'glpi:config:set' || $commandName === 'config:set')
-                && $index === 2
-                && isset($arguments[1])
-                && self::isSensitiveName((string) $arguments[1])
-            ) {
-                $safe[] = '[REDACTED]';
                 continue;
             }
 

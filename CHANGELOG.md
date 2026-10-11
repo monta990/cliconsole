@@ -7,6 +7,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
 
+## [1.0.3] - 2026-10-11
+
+### Security
+
+- Withhold the full argument list from audit metadata for `glpi:config:set` and its `config:set` alias, preventing credential leakage regardless of option order or configuration-key naming. The command execution arguments remain unchanged.
+
+
 ## [1.0.2] - 2026-09-08
 
 ### Security
