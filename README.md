@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/glpi-project/glpi" target="_blank"><img src="https://img.shields.io/badge/GLPI-12.0%2B-blue" alt="GLPI compatibility"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank"><img src="https://img.shields.io/badge/License-GPL%20v3%2B-green" alt="License"></a>
-  <a href="https://php.net/" target="_blank"><img src="https://img.shields.io/badge/PHP-%3E%3D8.2-purple" alt="PHP"></a>
+  <a href="https://php.net/" target="_blank"><img src="https://img.shields.io/badge/PHP-%3E%3D8.3-purple" alt="PHP"></a>
   <a href="https://github.com/monta990/cliconsole/releases" target="_blank"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/monta990/cliconsole/total"></a>
 </p>
 
@@ -43,7 +43,7 @@ It is intended for shared hosting and managed servers where a GLPI administrator
 
 - GLPI 12.x only.
 - Unix/Linux environments.
-- PHP 8.2 or newer.
+- PHP 8.3 or newer.
 - `proc_open()` must not be disabled for the PHP web SAPI.
 - The configured PHP CLI executable must exist and be executable by the web server account.
 
