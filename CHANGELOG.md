@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.4] - 2026-10-11
+
+### Security
+
+- Harden the optional GitHub release check by preferring HTTPS-only cURL protocol-string options when available and using equivalent bitmask restrictions on compatible older builds.
+- Fail closed when the installed PHP/cURL combination cannot apply an explicit HTTPS-only protocol restriction; the optional check remains unavailable without affecting terminal execution.
+
+### Compatibility
+
+- Keep the GitHub release checker optional for PHP installations without the cURL extension or without a supported protocol restriction option.
+
+---
+
 ## [1.0.3] - 2026-10-11
 
 ### Security
