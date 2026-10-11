@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2026-10-11
+
+### Security
+
+- Withhold the full argument list from audit metadata for `glpi:config:set` and its `config:set` alias, preventing credential leakage regardless of option order or configuration-key naming.
+- Detect the exact `config:set` command token anywhere in the parsed token list, covering leading Symfony global options (including options with separate values) without changing the arguments passed to the worker.
+
+---
 
 ## [1.0.2] - 2026-09-08
 
@@ -13,6 +21,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - Extended audit-log redaction to cover sensitive positional values used by `glpi:config:set`, including keys such as `smtp_passwd`.
 
+---
 
 ## [1.0.1] - 2026-09-07
 
@@ -20,15 +29,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - Fixed short password-option redaction so attached values such as `-pSECRET` are never written to the audit log.
 - Removed an unused local variable from command redaction logic.
-
 - Hardened audit-log writes to require complete line writes and successful flushes.
 - Added exception-safe worker finalization so unexpected failures terminate child processes when needed, release locks, close resources, remove worker markers, and emit a final audit event when possible.
 - Preserved the standard GLPI audit log during uninstall while cleaning plugin-owned temporary session and version-cache data when no worker is active.
 - Documented supported Unix/Linux environments.
-
 - Fixed the command shell-operator validation regex that could cause a PCRE compilation warning at runtime.
 - Correctly rejects shell metacharacters, backslashes, and NUL bytes without blocking valid command characters such as `x` or `0`.
-
 - Made GLPI 12 re-authentication fail closed when `ReAuthManager` is unavailable, for both console and configuration routes.
 - Validate the configured PHP executable as the actual PHP CLI interpreter before storing it and again before use; store its resolved real path.
 - Added the resolved PHP binary to the audit log.
@@ -46,12 +52,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - Centralized PHP CLI validation in `PhpCliValidator`.
 - Cached the Super-Admin profile check for the current request.
 
+---
 
 ## [1.0.0] - 2026-09-06
 
 ### Security hardening
-- Hardened audit-log redaction for sensitive positional values used by `glpi:config:set`, including configuration keys such as `smtp_passwd`.
 
+- Hardened audit-log redaction for sensitive positional values used by `glpi:config:set`, including configuration keys such as `smtp_passwd`.
 - Added execution, command, argument, input, queue, output, and concurrency limits.
 - Prevented reuse of an initialized terminal session with an atomic worker marker and lock.
 - Reworked session cleanup to protect live workers using a filesystem lock and heartbeat-based stale-session handling.
