@@ -85,7 +85,16 @@ final class VersionChecker
 
     private static function fetchLatestRelease(): ?array
     {
-        if (!function_exists('curl_init')) {
+        if (!function_exists('curl_init') || !function_exists('curl_setopt_array')) {
+            return null;
+        }
+
+        // Prefer the protocol-name options added with libcurl 7.85.0. Older
+        // PHP/cURL builds do not expose them, so use the equivalent bitmask
+        // options only on those older builds. If neither safe form is available,
+        // fail closed and leave the optional release check unavailable.
+        $protocolOptions = self::getProtocolOptions();
+        if ($protocolOptions === null) {
             return null;
         }
 
@@ -95,15 +104,13 @@ final class VersionChecker
         }
 
         $body = '';
-        curl_setopt_array($curl, [
+        $options = [
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 5,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
             CURLOPT_USERAGENT => 'GLPI-CLI-Console/' . PLUGIN_CLICONSOLE_VERSION,
             CURLOPT_HTTPHEADER => [
                 'Accept: application/vnd.github+json',
@@ -117,7 +124,18 @@ final class VersionChecker
                 $body .= $chunk;
                 return strlen($chunk);
             },
-        ]);
+        ];
+
+        foreach ($protocolOptions as $option => $value) {
+            $options[$option] = $value;
+        }
+
+        // Do not make a network request if any security or transport option was
+        // rejected by the installed PHP/libcurl combination.
+        if (!curl_setopt_array($curl, $options)) {
+            curl_close($curl);
+            return null;
+        }
 
         $ok = curl_exec($curl);
         $statusCode = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
@@ -148,6 +166,34 @@ final class VersionChecker
             'version' => $version,
             'url' => $url ?? self::REPOSITORY . '/releases',
         ];
+    }
+
+    /**
+     * Return strict HTTPS-only protocol restrictions supported by this cURL build.
+     *
+     * @return array<int, int|string>|null
+     */
+    private static function getProtocolOptions(): ?array
+    {
+        if (defined('CURLOPT_PROTOCOLS_STR') && defined('CURLOPT_REDIR_PROTOCOLS_STR')) {
+            return [
+                (int) constant('CURLOPT_PROTOCOLS_STR') => 'https',
+                (int) constant('CURLOPT_REDIR_PROTOCOLS_STR') => 'https',
+            ];
+        }
+
+        if (
+            defined('CURLOPT_PROTOCOLS')
+            && defined('CURLOPT_REDIR_PROTOCOLS')
+            && defined('CURLPROTO_HTTPS')
+        ) {
+            return [
+                (int) constant('CURLOPT_PROTOCOLS') => (int) constant('CURLPROTO_HTTPS'),
+                (int) constant('CURLOPT_REDIR_PROTOCOLS') => (int) constant('CURLPROTO_HTTPS'),
+            ];
+        }
+
+        return null;
     }
 
     private static function normalizeVersion(string $version): ?string
