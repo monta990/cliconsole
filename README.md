@@ -18,7 +18,7 @@
 
 # CLI Console
 
-**Current release: 1.0.3**
+**Current release: 1.0.4**
 
 CLI Console is a GLPI plugin that provides an authenticated web terminal for `bin/console` commands.
 
@@ -46,6 +46,8 @@ It is intended for shared hosting and managed servers where a GLPI administrator
 - PHP 8.3 or newer.
 - `proc_open()` must not be disabled for the PHP web SAPI.
 - The configured PHP CLI executable must exist and be executable by the web server account.
+- The PHP cURL extension is optional and is used only to check GitHub releases; without it, the version indicator is unavailable, but console execution is unaffected.
+- The GitHub release check restricts requests to HTTPS, uses modern cURL protocol options when available, and skips the check if a secure protocol restriction cannot be applied.
 
 ## Installation
 
