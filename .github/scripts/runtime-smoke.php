@@ -2,21 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Symfony\Component\HttpKernel\Exception {
-    class BadRequestHttpException extends \RuntimeException
-    {
-    }
+use GlpiPlugin\Cliconsole\AuditLogger;
+use GlpiPlugin\Cliconsole\CliConsole;
+use GlpiPlugin\Cliconsole\PhpCliValidator;
+use GlpiPlugin\Cliconsole\RuntimeLimits;
 
-    class AccessDeniedHttpException extends \RuntimeException
-    {
-    }
-}
-
-namespace {
-    use GlpiPlugin\Cliconsole\AuditLogger;
-    use GlpiPlugin\Cliconsole\CliConsole;
-    use GlpiPlugin\Cliconsole\PhpCliValidator;
-    use GlpiPlugin\Cliconsole\RuntimeLimits;
+require_once __DIR__ . '/stubs/CommonDBTM.php';
+require_once __DIR__ . '/stubs/Symfony/Component/HttpKernel/Exception/BadRequestHttpException.php';
+require_once __DIR__ . '/stubs/Symfony/Component/HttpKernel/Exception/AccessDeniedHttpException.php';
 
     if (!function_exists('__')) {
         function __(string $message, ?string $domain = null): string
@@ -310,5 +303,4 @@ PHP;
         echo "CLI Console runtime smoke tests passed.\n";
     } finally {
         $removeTree($temporaryRoot);
-    }
 }
