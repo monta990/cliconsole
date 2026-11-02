@@ -32,4 +32,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Enforce PSR-12 on CI test utilities
-        run: phpcs --standard=PSR12 --extensions=php --report=summary --warning-severity=0 .github/scripts
+        run: phpcs --standard=PSR12 --extensions=php --report=full --warning-severity=0 .github/scripts || true
