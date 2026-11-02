@@ -31,7 +31,5 @@ jobs:
           coverage: none
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Preview PSR-12 fixes for CI helper scripts
-        run: |
-          phpcbf --standard=PSR12 .github/scripts || true
-          git diff -- .github/scripts
+      - name: Show PSR-12 diagnostics for CI helper scripts
+        run: phpcs --standard=PSR12 --extensions=php --report=full .github/scripts || true
