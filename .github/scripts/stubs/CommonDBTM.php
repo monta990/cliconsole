@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
-class CommonDBTM
+namespace GlpiPlugin\Cliconsole\CiStub;
+
+final class CommonDBTM
 {
 }
+
+class_alias(CommonDBTM::class, 'CommonDBTM');
