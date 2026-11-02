@@ -1,0 +1,34 @@
+name: Security Invariants
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cliconsole-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: CLI execution and session security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: '8.5'
+          extensions: none
+          tools: none
+          coverage: none
+
+      - name: Check shell-free process execution and security boundaries
+        run: php .github/scripts/security-invariants.php
