@@ -18,6 +18,13 @@ namespace {
     use GlpiPlugin\Cliconsole\PhpCliValidator;
     use GlpiPlugin\Cliconsole\RuntimeLimits;
 
+    if (!function_exists('__')) {
+        function __(string $message, ?string $domain = null): string
+        {
+            return $message;
+        }
+    }
+
     if (!class_exists('CommonDBTM')) {
         class CommonDBTM
         {
