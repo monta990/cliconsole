@@ -13,6 +13,11 @@ namespace Symfony\Component\HttpKernel\Exception {
 }
 
 namespace {
+    use GlpiPlugin\Cliconsole\AuditLogger;
+    use GlpiPlugin\Cliconsole\CliConsole;
+    use GlpiPlugin\Cliconsole\PhpCliValidator;
+    use GlpiPlugin\Cliconsole\RuntimeLimits;
+
     if (!class_exists('CommonDBTM')) {
         class CommonDBTM
         {
