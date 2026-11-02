@@ -31,5 +31,5 @@ jobs:
           coverage: none
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show PSR-12 diagnostics for CI helper scripts
-        run: phpcs --standard=PSR12 --extensions=php --report=full .github/scripts || true
+      - name: Enforce PSR-12 on CI test utilities
+        run: phpcs --standard=PSR12 --extensions=php --report=summary --warning-severity=0 .github/scripts
