@@ -20,19 +20,20 @@ $read = static function (string $relativePath) use ($root, $fail): string {
 
 $processFiles = [
     'src/CliConsole.php',
+    'src/Controller/ConsoleController.php',
     'src/PhpCliValidator.php',
     'src/TerminalWorker.php',
 ];
 
 foreach ($processFiles as $relativePath) {
     $source = $read($relativePath);
-    $count = preg_match_all('/\\bproc_open\\s*\\(/', $source);
+    $count = preg_match_all('/\bproc_open\s*\(/', $source);
 
     if ($count !== 1) {
         $fail($relativePath . ' must have exactly one reviewed proc_open() call; found ' . $count . '.');
     }
 
-    if (preg_match('/proc_open\\s*\\(\\s*\\[/s', $source) !== 1) {
+    if (preg_match('/proc_open\s*\(\s*\[/s', $source) !== 1) {
         $fail($relativePath . ' must pass an argument array to proc_open().');
     }
 
@@ -56,7 +57,7 @@ foreach ($allPhp as $file) {
     }
 
     $source = (string) file_get_contents($file->getPathname());
-    if (preg_match('/\\b(?:shell_exec|exec|system|passthru|popen|eval)\\s*\\(/', $source) === 1) {
+    if (preg_match('/\b(?:shell_exec|exec|system|passthru|popen|eval)\s*\(/', $source) === 1) {
         $fail('A shell-oriented or dynamic-code execution function was introduced in ' . $path . '.');
     }
 }
@@ -64,13 +65,13 @@ foreach ($allPhp as $file) {
 $worker = $read('src/TerminalWorker.php');
 foreach ([
     "PHP_SAPI !== 'cli'",
-    "'/bin/'",
+    "DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR",
     'realpath($console)',
     'realpath($glpiRootArg)',
     'str_starts_with($binConsole, $binDir)',
     'RuntimeLimits::MAX_ARGUMENTS',
     'RuntimeLimits::MAX_ARGUMENT_LENGTH',
-    "str_contains($argument, \"\\0\")",
+    'str_contains($argument, "\0")',
     'flock($workerLock, LOCK_EX | LOCK_NB)',
     "['bypass_shell' => true]",
 ] as $invariant) {
@@ -80,9 +81,9 @@ foreach ([
 }
 
 $console = $read('src/Controller/ConsoleController.php');
-$ownerChecks = preg_match_all('/CliConsole::assertSessionOwner\\(\\$sessionDir\\)/', $console);
-$accessChecks = preg_match_all('/\\$this->checkAccess\\(\\)/', $console);
-$reauthChecks = preg_match_all('/\\$this->checkReAuth\\(\\)/', $console);
+$ownerChecks = preg_match_all('/CliConsole::assertSessionOwner\(\$sessionDir\)/', $console);
+$accessChecks = preg_match_all('/\$this->checkAccess\(\)/', $console);
+$reauthChecks = preg_match_all('/\$this->checkReAuth\(\)/', $console);
 
 if ($ownerChecks !== 4) {
     $fail('All four session-specific controller actions must verify session ownership; found ' . $ownerChecks . '.');
@@ -93,9 +94,9 @@ if ($accessChecks !== 6 || $reauthChecks !== 5 || !str_contains($console, '$this
 
 $session = $read('src/CliConsole.php');
 if (
-    !str_contains($session, "($metadata['user_id'] ?? 0)")
+    !str_contains($session, "'user_id'] ?? 0")
     || !str_contains($session, 'ownerId !== self::getCurrentUserId()')
-    || !str_contains($session, "'\\A[a-f0-9]{64}\\z'")
+    || !str_contains($session, '\A[a-f0-9]{64}\z')
 ) {
     $fail('Session ownership or session identifier validation changed unexpectedly.');
 }
@@ -116,9 +117,9 @@ foreach ([
 $redaction = $read('src/CliConsole.php');
 if (
     !str_contains($redaction, "['glpi:config:set', 'config:set']")
-    || !str_contains($redaction, "str_contains($name, 'pass')")
-    || !str_contains($redaction, "str_contains($name, 'token')")
-    || !str_contains($redaction, "str_contains($name, 'secret')")
+    || !str_contains($redaction, 'str_contains($name, \'pass\')')
+    || !str_contains($redaction, 'str_contains($name, \'token\')')
+    || !str_contains($redaction, 'str_contains($name, \'secret\')')
 ) {
     $fail('Sensitive command argument redaction changed unexpectedly.');
 }
