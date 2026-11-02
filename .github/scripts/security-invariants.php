@@ -63,7 +63,7 @@ foreach ($allPhp as $file) {
 }
 
 $worker = $read('src/TerminalWorker.php');
-foreach ([
+$workerInvariants = [
     "PHP_SAPI !== 'cli'",
     "DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR",
     'realpath($console)',
@@ -74,7 +74,9 @@ foreach ([
     'str_contains($argument, "\0")',
     'flock($workerLock, LOCK_EX | LOCK_NB)',
     "['bypass_shell' => true]",
-] as $invariant) {
+];
+
+foreach ($workerInvariants as $invariant) {
     if (!str_contains($worker, $invariant)) {
         $fail('The terminal worker is missing a required execution boundary: ' . $invariant);
     }
@@ -102,13 +104,15 @@ if (
 }
 
 $audit = $read('src/AuditLogger.php');
-foreach ([
+$auditInvariants = [
     'flock($lock, LOCK_EX)',
     'is_link($path)',
     'chmod($path, 0600)',
     'RuntimeLimits::AUDIT_MAX_SIZE',
     'LOCK_EX',
-] as $invariant) {
+];
+
+foreach ($auditInvariants as $invariant) {
     if (!str_contains($audit, $invariant)) {
         $fail('Audit log protection is missing: ' . $invariant);
     }
