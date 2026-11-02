@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cliconsole-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php-version: '8.3'
+            experimental: false
+          - php-version: '8.4'
+            experimental: false
+          - php-version: '8.5'
+            experimental: false
+          # PHP 8.6 is still a nightly development build, not a stable release.
+          # Keep it visible in CI without blocking stable compatibility checks.
+          - php-version: '8.6'
+            experimental: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: none
+          tools: none
+          coverage: none
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify runtime prerequisites
+        run: |
+          php --version
+          php -r '
+            if (PHP_VERSION_ID < 80300) {
+                fwrite(STDERR, "PHP 8.3 or newer is required.\\n");
+                exit(1);
+            }
+            if (!function_exists("proc_open")) {
+                fwrite(STDERR, "proc_open() must be available for CLI Console.\\n");
+                exit(1);
+            }
+            echo "PHP runtime prerequisites passed.\\n";
+          '
+
+      - name: Lint all PHP files
+        shell: bash
+        run: |
+          mapfile -d '' php_files < <(find . -type f -name '*.php' -not -path './.git/*' -print0)
+          if [[ ${#php_files[@]} -eq 0 ]]; then
+            echo "No PHP files were found."
+            exit 1
+          fi
+
+          for file in "${php_files[@]}"; do
+            php -l "$file"
+          done
+
+      - name: Run isolated CLI, worker, audit, and session smoke tests
+        run: php .github/scripts/runtime-smoke.php
