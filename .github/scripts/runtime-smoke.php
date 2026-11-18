@@ -102,6 +102,9 @@ try {
     $unprefixedCommand = CliConsole::normalizeCommand(['about'], PHP_BINARY, $consolePath);
     $assert($unprefixedCommand === ['glpi:about'], 'The complete command name without the GLPI prefix was not normalized.');
 
+    $unprefixedConfigSet = CliConsole::normalizeCommand(['config:set'], PHP_BINARY, $consolePath);
+    $assert($unprefixedConfigSet === ['glpi:config:set'], 'The complete config:set alias was not normalized.');
+
     $reversePrefixCommand = CliConsole::normalizeCommand(['glpi:migration:timestamps'], PHP_BINARY, $consolePath);
     $assert($reversePrefixCommand === ['migration:timestamps'], 'The complete command name with an optional GLPI prefix was not normalized.');
 
