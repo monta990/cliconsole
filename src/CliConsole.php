@@ -281,10 +281,6 @@ final class CliConsole extends CommonDBTM
     }
 
     /**
-     * Accept both GLPI command spellings when a command exists with or without the
-     * `glpi:` prefix. Exact command names always take precedence.
-     */
-    /**
      * Resolve only complete command names from this GLPI installation.
      *
      * Symfony accepts unambiguous command abbreviations. CLI Console deliberately

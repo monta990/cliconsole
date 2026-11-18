@@ -116,7 +116,7 @@ try {
         $abbreviationRejected = false;
         try {
             CliConsole::normalizeCommand($invalidCommand, PHP_BINARY, $consolePath);
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
+        } catch (\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
             $abbreviationRejected = true;
         }
         $assert($abbreviationRejected, 'An abbreviated command or an option before the command was accepted: ' . implode(' ', $invalidCommand));
@@ -125,7 +125,7 @@ try {
     $unknownCommandRejected = false;
     try {
         CliConsole::normalizeCommand(['glpi:unknown:command'], PHP_BINARY, $consolePath);
-    } catch (\\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
+    } catch (\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
         $unknownCommandRejected = true;
     }
     $assert($unknownCommandRejected, 'An unregistered command was accepted.');

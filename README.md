@@ -77,7 +77,7 @@ The PHP executable path is an administrator-controlled setting. It is resolved a
 
 The user's input is parsed into arguments and passed to `proc_open()` as an array. No shell command string is constructed, so shell metacharacters are not interpreted. Common shell operators are also rejected as an additional defensive measure.
 
-Before execution, CLI Console verifies the command name against the command registry of the current GLPI installation. Only complete registered command names are accepted; Symfony-style command abbreviations and unknown command names are rejected. For compatibility, a complete command name may still be entered with or without the optional \`glpi:\` prefix when that exact alternate spelling maps to a registered command. The command name must be the first token; place command-specific options after it. Global options before the command are not supported.
+Before execution, CLI Console verifies the command name against the command registry of the current GLPI installation. Only complete registered command names are accepted; Symfony-style command abbreviations and unknown command names are rejected. For compatibility, a complete command name may still be entered with or without the optional `glpi:` prefix when that exact alternate spelling maps to a registered command. The command name must be the first token; place command-specific options after it. Global options before the command are not supported.
 
 This does not make GLPI console commands harmless. A Super-Admin may still execute any command exposed by GLPI's own `bin/console`, including commands that alter configuration or data. Access is intentionally limited to GLPI's native Super-Admin profiles.
 
