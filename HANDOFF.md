@@ -23,6 +23,14 @@ The browser controller parses user input, resolves the configured PHP CLI binary
 
 The audit protection for `glpi:config:set` and `config:set` continues to withhold the full argument list. The new validation closes the gap where Symfony could execute a valid abbreviation while the audit logic saw a different literal token.
 
+## Package generation
+
+- Run `php tools/build-zip.php` from the repository root (PHP 8.3+ with ext-zip).
+- Default output: `dist/cliconsole-1.0.5.zip`.
+- An output directory or an explicit ZIP path can be supplied as the first argument.
+- The ZIP contains the installable `cliconsole/` directory and excludes CI tooling, GitHub workflows, the builder, and HANDOFF.md.
+- The plugin workflow builds and uploads the same ZIP as a downloadable GitHub Actions artifact.
+
 ## Validation to perform
 
 1. Confirm GitHub Actions passes PHP 8.3, 8.4, 8.5, and the experimental PHP 8.6 lane.

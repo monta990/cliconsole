@@ -19,6 +19,7 @@ $requiredFiles = [
     'src/TerminalWorker.php',
     'src/AuditLogger.php',
     'src/VersionChecker.php',
+    'tools/build-zip.php',
     'src/Controller/ConfigController.php',
     'src/Controller/ConsoleController.php',
     'templates/configuration.html.twig',

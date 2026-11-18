@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   plugin:
-    name: GLPI plugin metadata and structure
+    name: GLPI plugin metadata, structure and package
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -22,13 +22,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
-      - name: Set up PHP with XML support
+      - name: Set up PHP with XML and ZIP support
         uses: shivammathur/setup-php@2.37.2
         with:
           php-version: '8.5'
-          extensions: simplexml
+          extensions: simplexml, zip
           tools: none
           coverage: none
 
       - name: Validate plugin manifest, version, compatibility, and required files
         run: php .github/scripts/validate-plugin.php
+
+      - name: Build and verify installable plugin ZIP
+        run: php tools/build-zip.php "$RUNNER_TEMP/cliconsole-package"
+
+      - name: Upload installable plugin ZIP
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: cliconsole-${{ github.sha }}
+          path: ${{ runner.temp }}/cliconsole-package/cliconsole-1.0.5.zip
+          if-no-files-found: error
+          retention-days: 14
