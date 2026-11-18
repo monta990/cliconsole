@@ -19,6 +19,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Quality
 
 - Extend the isolated runtime smoke tests and security invariants to cover exact command resolution, alias normalization, abbreviation rejection, and fail-closed audit safety.
+- Add `php tools/build-zip.php` to build and integrity-check an installable ZIP from the command line.
+- Generate and upload a versioned installation ZIP as a GitHub Actions artifact on pushes and pull requests.
 
 ---
 

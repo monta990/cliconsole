@@ -83,6 +83,28 @@ This does not make GLPI console commands harmless. A Super-Admin may still execu
 
 On GLPI 12, the page itself requests GLPI's re-authentication window before the console is available. If that window expires while the page is open, the streaming action is refused until the console page is reloaded and re-authenticated again.
 
+## Building an installation ZIP
+
+The repository includes a command-line package builder. Run it from the repository root with PHP 8.3 or newer and the PHP Zip extension enabled:
+
+```bash
+php tools/build-zip.php
+```
+
+By default, the installable archive is written to `dist/cliconsole-1.0.5.zip`. To choose another output directory:
+
+```bash
+php tools/build-zip.php /path/to/output-directory
+```
+
+Or provide an explicit ZIP file path:
+
+```bash
+php tools/build-zip.php /path/to/cliconsole-1.0.5.zip
+```
+
+The builder reads the version from `setup.php`, verifies that `plugin.xml` matches, creates a `cliconsole/` top-level folder, checks the resulting archive, and includes only runtime plugin files. It excludes GitHub workflows, CI scripts, the build tool itself, and `HANDOFF.md`. GitHub Actions runs this builder for pushes and pull requests and uploads the resulting ZIP as a downloadable workflow artifact.
+
 ## GLPI 12 compatibility
 
 CLI Console targets GLPI 12.x only and uses the native GLPI re-authentication (`sudo mode`) available in GLPI 12 for sensitive console access. The plugin uses modern Controllers and GLPI 12's native request protections.
