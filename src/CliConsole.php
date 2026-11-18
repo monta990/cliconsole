@@ -284,22 +284,38 @@ final class CliConsole extends CommonDBTM
      * Accept both GLPI command spellings when a command exists with or without the
      * `glpi:` prefix. Exact command names always take precedence.
      */
+    /**
+     * Resolve only complete command names from this GLPI installation.
+     *
+     * Symfony accepts unambiguous command abbreviations. CLI Console deliberately
+     * rejects them so audit redaction and the command that actually runs cannot
+     * disagree about the command identity. The optional GLPI prefix alternative
+     * remains supported, but only when the complete alternate name is registered.
+     */
     public static function normalizeCommand(array $arguments, string $phpBinary, string $console): array
     {
         if ($arguments === []) {
-            return $arguments;
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('No command was provided.', 'cliconsole')
+            );
         }
 
         $commandName = (string) $arguments[0];
-        if ($commandName === '') {
-            return $arguments;
+        if ($commandName === '' || str_starts_with($commandName, '-')) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('Enter a complete command name before any options. Abbreviated command names and options before the command are not supported.', 'cliconsole')
+            );
         }
 
-        // Discover the commands from the same GLPI installation instead of
-        // relying on a hard-coded list. This keeps custom plugin commands safe.
+        // Discover command names from this exact GLPI installation. Fail closed:
+        // without a complete, successful registry read, no user command is run.
         $process = @proc_open(
             [$phpBinary, $console, 'list', '--raw'],
-            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            [
+                0 => ['file', '/dev/null', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
             $pipes,
             GLPI_ROOT,
             null,
@@ -307,7 +323,9 @@ final class CliConsole extends CommonDBTM
         );
 
         if (!is_resource($process)) {
-            return $arguments;
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('The GLPI console command list could not be loaded safely. No command was executed.', 'cliconsole')
+            );
         }
 
         foreach ([1, 2] as $stream) {
@@ -318,44 +336,73 @@ final class CliConsole extends CommonDBTM
 
         $stdout = '';
         $stderr = '';
+        $outputOverflow = false;
+        $processExitCode = null;
+        $status = null;
         $startedAt = microtime(true);
+
+        $appendOutput = static function (int $stream, string $data) use (&$stdout, &$stderr, &$outputOverflow): void {
+            $limit = $stream === 1 ? 262144 : 32768;
+            $buffer = $stream === 1 ? $stdout : $stderr;
+            $remaining = max(0, $limit - strlen($buffer));
+            if (strlen($data) > $remaining) {
+                $outputOverflow = true;
+            }
+
+            $buffer .= substr($data, 0, $remaining);
+            if ($stream === 1) {
+                $stdout = $buffer;
+            } else {
+                $stderr = $buffer;
+            }
+        };
 
         while ((microtime(true) - $startedAt) < 10) {
             foreach ([1, 2] as $stream) {
                 if (!isset($pipes[$stream]) || !is_resource($pipes[$stream])) {
                     continue;
                 }
+
                 $data = stream_get_contents($pipes[$stream]);
                 if ($data !== false && $data !== '') {
-                    if ($stream === 1) {
-                        $stdout .= substr($data, 0, max(0, 262144 - strlen($stdout)));
-                    } else {
-                        $stderr .= substr($data, 0, max(0, 32768 - strlen($stderr)));
-                    }
+                    $appendOutput($stream, $data);
                 }
             }
 
             $status = proc_get_status($process);
             if (!$status['running']) {
+                $processExitCode = (int) ($status['exitcode'] ?? -1);
                 break;
             }
+
             usleep(50000);
         }
 
-        if (isset($pipes[1]) && is_resource($pipes[1])) {
-            $data = stream_get_contents($pipes[1]);
-            if ($data !== false) {
-                $stdout .= substr($data, 0, max(0, 262144 - strlen($stdout)));
-            }
-            fclose($pipes[1]);
-        }
-        if (isset($pipes[2]) && is_resource($pipes[2])) {
-            fclose($pipes[2]);
-        }
-        if (isset($status) && $status['running']) {
+        $timedOut = $status === null || $status['running'];
+        if ($timedOut) {
             @proc_terminate($process);
         }
-        @proc_close($process);
+
+        foreach ([1, 2] as $stream) {
+            if (isset($pipes[$stream]) && is_resource($pipes[$stream])) {
+                $data = stream_get_contents($pipes[$stream]);
+                if ($data !== false && $data !== '') {
+                    $appendOutput($stream, $data);
+                }
+                fclose($pipes[$stream]);
+            }
+        }
+
+        $closeCode = @proc_close($process);
+        if ($processExitCode === null || $processExitCode < 0) {
+            $processExitCode = $closeCode;
+        }
+
+        if ($timedOut || $outputOverflow || $processExitCode !== 0) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('The GLPI console command list could not be loaded safely. No command was executed.', 'cliconsole')
+            );
+        }
 
         $available = [];
         foreach (preg_split('/\R/', $stdout, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $line) {
@@ -363,16 +410,21 @@ final class CliConsole extends CommonDBTM
             if ($line === '' || str_starts_with($line, '#')) {
                 continue;
             }
+
             $name = preg_split('/\s+/', $line, 2)[0] ?? '';
             if ($name !== '') {
                 $available[$name] = true;
             }
         }
 
-        // Prefer an exact command name when it exists. If the exact name does
-        // not exist, transparently accept the alternate GLPI spelling: with or
-        // without the `glpi:` prefix. This works in both directions and avoids
-        // hard-coding a list of commands.
+        if ($available === []) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                __('The GLPI console command list could not be loaded safely. No command was executed.', 'cliconsole')
+            );
+        }
+
+        // Exact registered spelling always takes precedence. The unprefixed and
+        // glpi:-prefixed alternatives are accepted only as complete exact names.
         if (isset($available[$commandName])) {
             return $arguments;
         }
@@ -381,15 +433,19 @@ final class CliConsole extends CommonDBTM
             $unprefixed = substr($commandName, 5);
             if ($unprefixed !== '' && isset($available[$unprefixed])) {
                 $arguments[0] = $unprefixed;
+                return $arguments;
             }
         } else {
             $prefixed = 'glpi:' . $commandName;
             if (isset($available[$prefixed])) {
                 $arguments[0] = $prefixed;
+                return $arguments;
             }
         }
 
-        return $arguments;
+        throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+            __('Use a complete registered command name. Abbreviations and unknown commands are not allowed.', 'cliconsole')
+        );
     }
 
     public static function readTailFromOffset(string $file, int $offset): array
