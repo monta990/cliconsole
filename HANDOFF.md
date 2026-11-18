@@ -6,7 +6,7 @@
 - Base version: 1.0.4
 - Branch: `fix/1.0.5-config-set-abbreviations`
 - Purpose: close Teclib/Claude LOW finding from 2026-11-05 concerning abbreviated Symfony command names bypassing audit redaction
-- Status: implementation prepared for review; GitHub Actions and GLPI 12 integration verification must complete before publishing a release
+- Status: implementation and automated CI completed; live GLPI 12 integration testing and the Teclib/Claude re-review remain pending before publishing a release
 
 ## Changes
 
@@ -33,9 +33,9 @@ The audit protection for `glpi:config:set` and `config:set` continues to withhol
 
 ## Validation to perform
 
-1. Confirm GitHub Actions passes PHP 8.3, 8.4, 8.5, and the experimental PHP 8.6 lane.
-2. Confirm runtime smoke tests reject `glpi:config:s`, `config:s`, `glpi:conf`, `glpi:config`, unknown names, and global options before the command.
-3. Confirm the exact registered command and optional complete-prefix forms still normalize successfully.
+1. **Passed:** GitHub Actions completed successfully for PHP 8.3, 8.4, 8.5 and experimental PHP 8.6, security invariants, PSR-12 quality, plugin structure and the ZIP packaging/artifact step.
+2. **Passed:** runtime smoke tests reject `glpi:config:s`, `config:s`, `glpi:conf`, `glpi:config`, unknown names, and global options before the command.
+3. **Passed:** complete registered command names and exact prefix/alias variants normalize successfully.
 4. On a GLPI 12 installation, run the Teclib regression matrix with non-production test values and verify no positional values appear in either `GLPI_LOG_DIR/cliconsole.log` or session `metadata.json`.
 5. Re-run the Teclib/Claude security review before publishing the 1.0.5 release asset.
 
