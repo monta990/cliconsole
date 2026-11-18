@@ -13,8 +13,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - Reject abbreviated and unknown console command names before execution so Symfony cannot resolve a command that the audit redactor did not identify.
 - Require the command name as the first token; options before the command are rejected, while command options after the complete command name remain supported.
 - Fail closed when the current GLPI command registry cannot be read completely, exits unsuccessfully, times out, or exceeds the bounded output size.
-- Preserve support for complete registered command names with or without the optional \`glpi:\` prefix.
-- Add regression coverage for the 1.0.2 positional-secret scenarios and the 1.0.4 abbreviated \`config:set\` bypass.
+- Preserve support for complete registered command names with or without the optional `glpi:` prefix.
+- Add regression coverage for the 1.0.2 positional-secret scenarios and the 1.0.4 abbreviated `config:set` bypass.
 
 ### Quality
 
