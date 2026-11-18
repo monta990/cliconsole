@@ -118,6 +118,16 @@ foreach ($auditInvariants as $invariant) {
     }
 }
 
+$commandResolution = $read('src/CliConsole.php');
+if (
+    !str_contains($commandResolution, "str_starts_with(\$commandName, '-')")
+    || !str_contains($commandResolution, 'Abbreviations and unknown commands are not allowed.')
+    || !str_contains($commandResolution, 'The GLPI console command list could not be loaded safely.')
+    || !str_contains($commandResolution, '$processExitCode !== 0')
+) {
+    $fail('Command resolution must reject abbreviations and unknown commands and fail closed if the registered command list cannot be verified.');
+}
+
 $redaction = $read('src/CliConsole.php');
 if (
     !str_contains($redaction, "['glpi:config:set', 'config:set']")

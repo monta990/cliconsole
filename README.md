@@ -18,7 +18,7 @@
 
 # CLI Console
 
-**Current release: 1.0.4**
+**Current release: 1.0.5**
 
 CLI Console is a GLPI plugin that provides an authenticated web terminal for `bin/console` commands.
 
@@ -76,6 +76,8 @@ Each terminal session is bound to the GLPI user who created it, so another Super
 The PHP executable path is an administrator-controlled setting. It is resolved and validated as a real PHP CLI interpreter before it is stored and again before execution. The script argument is always the resolved GLPI `bin/console`.
 
 The user's input is parsed into arguments and passed to `proc_open()` as an array. No shell command string is constructed, so shell metacharacters are not interpreted. Common shell operators are also rejected as an additional defensive measure.
+
+Before execution, CLI Console verifies the command name against the command registry of the current GLPI installation. Only complete registered command names are accepted; Symfony-style command abbreviations and unknown command names are rejected. For compatibility, a complete command name may still be entered with or without the optional \`glpi:\` prefix when that exact alternate spelling maps to a registered command. The command name must be the first token; place command-specific options after it. Global options before the command are not supported.
 
 This does not make GLPI console commands harmless. A Super-Admin may still execute any command exposed by GLPI's own `bin/console`, including commands that alter configuration or data. Access is intentionally limited to GLPI's native Super-Admin profiles.
 

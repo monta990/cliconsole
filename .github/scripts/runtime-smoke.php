@@ -54,6 +54,31 @@ $removeTree = static function (string $path) use (&$removeTree): void {
 
 $mkdir($temporaryRoot);
 
+$glpiRoot = $temporaryRoot . '/fake-glpi';
+$binDirectory = $glpiRoot . '/bin';
+$mkdir($binDirectory);
+
+$consolePath = $binDirectory . '/console';
+$consoleSource = <<<'PHP'
+<?php
+if (($argv[1] ?? '') === 'list' && ($argv[2] ?? '') === '--raw') {
+    echo "glpi:about\n";
+    echo "glpi:config:set\n";
+    echo "migration:timestamps\n";
+    exit(0);
+}
+
+fwrite(STDOUT, 'fixture-console-ok:' . implode(',', array_slice($argv, 1)) . PHP_EOL);
+$input = stream_get_contents(STDIN);
+fwrite(STDOUT, 'fixture-input:' . $input);
+fwrite(STDERR, 'fixture-stderr-ok' . PHP_EOL);
+PHP;
+file_put_contents($consolePath, $consoleSource);
+
+if (!defined('GLPI_ROOT')) {
+    define('GLPI_ROOT', $glpiRoot);
+}
+
 try {
     $assert(RuntimeLimits::MAX_ACTIVE_SESSIONS === 3, 'The active-session limit changed unexpectedly.');
     $assert(RuntimeLimits::MAX_EXECUTION_TIME === 900, 'The command timeout changed unexpectedly.');
@@ -70,6 +95,58 @@ try {
         $shellOperatorRejected = true;
     }
     $assert($shellOperatorRejected, 'A shell operator was not rejected.');
+
+    $canonicalCommand = CliConsole::normalizeCommand(['glpi:about'], PHP_BINARY, $consolePath);
+    $assert($canonicalCommand === ['glpi:about'], 'A complete registered command was not accepted.');
+
+    $unprefixedCommand = CliConsole::normalizeCommand(['about'], PHP_BINARY, $consolePath);
+    $assert($unprefixedCommand === ['glpi:about'], 'The complete command name without the GLPI prefix was not normalized.');
+
+    $reversePrefixCommand = CliConsole::normalizeCommand(['glpi:migration:timestamps'], PHP_BINARY, $consolePath);
+    $assert($reversePrefixCommand === ['migration:timestamps'], 'The complete command name with an optional GLPI prefix was not normalized.');
+
+    $abbreviations = [
+        ['glpi:config:s'],
+        ['config:s'],
+        ['glpi:conf'],
+        ['glpi:config'],
+        ['--env', 'prod', 'glpi:config:set'],
+    ];
+    foreach ($abbreviations as $invalidCommand) {
+        $abbreviationRejected = false;
+        try {
+            CliConsole::normalizeCommand($invalidCommand, PHP_BINARY, $consolePath);
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
+            $abbreviationRejected = true;
+        }
+        $assert($abbreviationRejected, 'An abbreviated command or an option before the command was accepted: ' . implode(' ', $invalidCommand));
+    }
+
+    $unknownCommandRejected = false;
+    try {
+        CliConsole::normalizeCommand(['glpi:unknown:command'], PHP_BINARY, $consolePath);
+    } catch (\\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException) {
+        $unknownCommandRejected = true;
+    }
+    $assert($unknownCommandRejected, 'An unregistered command was accepted.');
+
+    $configSetCases = [
+        ['glpi:config:set', 'smtp_passwd', 'smtp-secret-value'],
+        ['glpi:config:set', '--context=core', 'smtp_passwd', 'context-secret-value'],
+        ['glpi:config:set', '-c', 'myplugin', 'proxy_auth_string', 'proxy-secret-value'],
+        ['config:set', '--context=myplugin', 'proxy_auth_string', 'alias-secret-value'],
+    ];
+    foreach ($configSetCases as $configSetArguments) {
+        $safeAuditCommand = CliConsole::redactCommand($configSetArguments);
+        $assert(
+            !str_contains($safeAuditCommand, (string) end($configSetArguments)),
+            'A config:set positional secret was not withheld from the audit string.'
+        );
+        $assert(
+            str_ends_with($safeAuditCommand, '[arguments withheld]'),
+            'config:set did not withhold its complete argument list.'
+        );
+    }
 
     $redacted = CliConsole::redactCommand([
         '--db-password',
@@ -137,21 +214,8 @@ try {
     }
     $assert($crossUserRejected, 'A different user was allowed to access a terminal session.');
 
-    $glpiRoot = $temporaryRoot . '/fake-glpi';
-    $binDirectory = $glpiRoot . '/bin';
     $sessionDirectory = $temporaryRoot . '/worker-session';
-    $mkdir($binDirectory);
     $mkdir($sessionDirectory);
-
-    $consolePath = $binDirectory . '/console';
-    $consoleSource = <<<'PHP'
-<?php
-fwrite(STDOUT, 'fixture-console-ok:' . implode(',', array_slice($argv, 1)) . PHP_EOL);
-$input = stream_get_contents(STDIN);
-fwrite(STDOUT, 'fixture-input:' . $input);
-fwrite(STDERR, 'fixture-stderr-ok' . PHP_EOL);
-PHP;
-    file_put_contents($consolePath, $consoleSource);
 
     $sessionId = str_repeat('a', 64);
     $initialFiles = [

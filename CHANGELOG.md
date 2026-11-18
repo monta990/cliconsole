@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.5] - 2026-11-18
+
+### Security
+
+- Reject abbreviated and unknown console command names before execution so Symfony cannot resolve a command that the audit redactor did not identify.
+- Require the command name as the first token; options before the command are rejected, while command options after the complete command name remain supported.
+- Fail closed when the current GLPI command registry cannot be read completely, exits unsuccessfully, times out, or exceeds the bounded output size.
+- Preserve support for complete registered command names with or without the optional \`glpi:\` prefix.
+- Add regression coverage for the 1.0.2 positional-secret scenarios and the 1.0.4 abbreviated \`config:set\` bypass.
+
+### Quality
+
+- Extend the isolated runtime smoke tests and security invariants to cover exact command resolution, alias normalization, abbreviation rejection, and fail-closed audit safety.
+
+---
+
 ## [1.0.4] - 2026-10-22
 
 ### Security
